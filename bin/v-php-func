@@ -1,0 +1,21 @@
+#!/bin/bash
+# info: calling myVesta PHP functions
+# options: FUNCTION
+#
+# The function is calling myVesta or standard PHP functions directly from bash
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+
+if [ "$1" == "--stdin" ] && [ -p /dev/stdin ]; then
+    STDIN=$(cat -)
+    if [ ! -z "$STDIN" ]; then
+        echo "$STDIN" | php /usr/local/vesta/func/bash-to-php-interpreter.php "$@"
+        exit $?
+    fi
+fi
+
+php /usr/local/vesta/func/bash-to-php-interpreter.php "$@"
+exit $?

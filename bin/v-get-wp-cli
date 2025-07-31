@@ -1,0 +1,44 @@
+#!/bin/bash
+# info: Download WP CLI
+# options: NONE
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ]; then
+    echo "You must be root to execute this script"
+    exit 1
+fi
+
+# Importing system environment
+source /etc/profile
+
+if [ ! -f "/usr/local/bin/composer" ]; then
+    echo "= Composer is not installed. Installing..."
+    php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+    php composer-setup.php --install-dir=/usr/local/bin --filename=composer
+    php -r "unlink('composer-setup.php');"
+    echo "= Composer installed successfully."
+fi
+
+if [ -d "/usr/local/bin/wp-cli" ]; then
+    echo "= Removing old WP CLI..."
+    rm -rf /usr/local/bin/wp-cli
+fi
+
+cd /usr/local/bin
+git clone https://github.com/wp-cli/wp-cli.git
+
+chown -R www-data:www-data wp-cli
+
+cd wp-cli/
+sudo -H -u www-data composer install
+
+# Fix terminal columns issue for WP CLI
+/usr/local/vesta/bin/v-sed '$columns = 80;' "if (file_exists('/usr/local/bin/wp-cli/COLUMNS')) \$columns=intval(file_get_contents('/usr/local/bin/wp-cli/COLUMNS')); else \$columns = 80;" '/usr/local/bin/wp-cli/vendor/wp-cli/php-cli-tools/lib/cli/Shell.php'
+
+echo "= WP CLI installed successfully."
+
+exit 0;

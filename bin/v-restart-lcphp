@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# This script restarts LSPHP on Ubuntu
+echo "Marking PHP processes for restart..."
+
+touch /usr/local/lsws/admin/tmp/.lsphp_restart.txt
+
+echo "PHP processes have been marked for restart."
+
+exit 0

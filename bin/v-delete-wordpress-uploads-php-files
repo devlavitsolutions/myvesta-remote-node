@@ -1,0 +1,64 @@
+#!/bin/bash
+# info: delete PHP files from WordPress uploads folder
+# options: DOMAIN
+
+#----------------------------------------------------------#
+#                    Variable & Function                   #
+#----------------------------------------------------------#
+
+[ "$(whoami)" != "root" ] && { echo "You must be root to run this command."; exit 1; }
+source /etc/profile
+
+DOMAIN="$1"
+[ -z "$DOMAIN" ] && { echo "Usage: v-delete-wordpress-uploads-php-files DOMAIN"; exit 1; }
+
+USER="$(/usr/local/vesta/bin/v-search-domain-owner "$DOMAIN")"
+[ -z "$USER" ] && { echo "Domain $DOMAIN does not exist."; exit 1; }
+
+WP_PATH="/home/$USER/web/$DOMAIN/public_html"
+[ ! -f "$WP_PATH/wp-config.php" ] && { echo "WordPress is not installed on this domain."; exit 1; }
+
+quarantined=0;
+
+#----------------------------------------------------------#
+#                         Action                           #
+#----------------------------------------------------------#
+
+cd "$WP_PATH" || exit 1
+
+files=$(find wp-content/uploads/ -type f -name "*.php")
+
+if [ -z "$files" ]; then
+    echo "= No PHP files found in WordPress uploads folder."
+    exit 0;
+fi
+
+echo "= Found PHP files in WordPress uploads folder for domain $DOMAIN :"
+echo "-------------------------------------"
+echo "$files"
+echo "-------------------------------------"
+
+read -r -p "Do you want to move these files to quarantine? (y/n, default: y): " RESPONSE < /dev/tty
+if [ "$RESPONSE" == "y" ] || [ "$RESPONSE" == "Y" ] || [ -z "$RESPONSE" ]; then
+    for file in $files; do
+        source_file="/home/$USER/web/$DOMAIN/public_html/$file"
+        destination_file="/srv/wp-uploads-php-files-quarantine/$DOMAIN/$file"
+        destination_folder=$(dirname "$destination_file")
+        mkdir -p "$destination_folder"
+        chown $USER:$USER "$destination_folder"
+        mv "$source_file" "$destination_file"
+        echo "= File $source_file moved to $destination_file"
+        quarantined=1;
+    done
+    chown -R $USER:$USER "/srv/wp-uploads-php-files-quarantine/$DOMAIN"
+fi
+
+echo ""
+if [ $quarantined -eq 1 ]; then
+    echo "= All PHP files moved to quarantine."
+    echo "= You can find them in /srv/wp-uploads-php-files-quarantine/$DOMAIN"
+else
+    echo "= No PHP files found in WordPress uploads folder."
+fi
+
+exit 0;

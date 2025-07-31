@@ -1,0 +1,35 @@
+#!/bin/bash
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ]; then
+    echo "You must be root to execute this script"
+    exit 1;
+fi
+
+if [ -f "/tmp/patched" ]; then rm /tmp/patched; fi;
+
+echo "=== Fixing php.ini files to have the correct disable_functions line"
+
+export NOTFOUNDVAL="exec,system,passthru,shell_exec"
+export LINEBEGINSWITH="disable_functions ="
+export NEWVAL="disable_functions = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,pcntl_unshare,exec,system,passthru,shell_exec,proc_open,popen"
+
+find /etc/php/*/fpm/ -type f -name "php.ini" -exec grep -L "$NOTFOUNDVAL" {} \; | xargs sh -c 'found=0; for arg do if [ ! -f "$arg.disable_patching" ]; then if [ $found -eq 0 ]; then echo "== Fixing existing lines"; found=1; touch /tmp/patched; fi; echo "= Patching $arg"; sed -i "s|^$LINEBEGINSWITH.*|$NEWVAL|g" $arg; fi; done' _
+
+export NOTFOUNDVAL2="^$LINEBEGINSWITH"
+export REMOVELINETHATCONTAINS=$LINEBEGINSWITH
+
+find /etc/php/*/fpm/ -type f -name "php.ini" -exec grep -L "$NOTFOUNDVAL2" {} \; | xargs sh -c 'found=0; for arg do if [ ! -f "$arg.disable_patching" ]; then if [ $found -eq 0 ]; then echo "== Adding missing lines"; found=1; touch /tmp/patched; fi; echo "= Patching $arg"; sed -i "s|.*$REMOVELINETHATCONTAINS.*||g" $arg; echo "$NEWVAL" >> $arg; fi; done' _
+
+if [ -f "/tmp/patched" ]; then
+    rm /tmp/patched
+
+    echo "== Restarting all PHP-FPM services"
+    systemctl --full --type service --all | grep "php...-fpm" | sed 's#●##g' | awk '{print $1}' | xargs systemctl restart
+
+    echo "=== Everything done."
+else
+    echo "=== Everything is already correct."
+fi
+
+exit 0;

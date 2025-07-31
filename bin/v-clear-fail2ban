@@ -1,0 +1,59 @@
+#!/bin/bash
+# info: Clean fail2ban database
+# options: NONE
+#
+# The function is cleaning fail2ban database
+
+#----------------------------------------------------------#
+#           Verifications & Variable & Function            #
+#----------------------------------------------------------#
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ]; then
+    echo "You must be root to execute this script"
+    exit 1
+fi
+
+# check if fail2ban is installed
+fail2ban_installed=$(/usr/local/vesta/bin/v-list-sys-services | grep -c 'fail2ban')
+if [ $fail2ban_installed -eq 0 ]; then
+    echo "Fail2ban is not installed"
+    exit 1
+fi
+
+# Includes
+source /usr/local/vesta/func/main.sh
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+# Cleaning fail2ban database
+fail2ban_running=$(/usr/local/vesta/bin/v-list-sys-services | grep 'fail2ban' | grep -c 'running')
+if [ $fail2ban_running -eq 1 ]; then
+    echo "== Stopping fail2ban"
+    systemctl stop fail2ban
+fi
+if [ -f "/var/lib/fail2ban/fail2ban.sqlite3" ]; then
+    echo "== Cleaning fail2ban database"
+    rm /var/lib/fail2ban/fail2ban.sqlite3
+    if [ -f "/etc/nginx/conf.d/block.conf" ]; then
+        echo "== Cleaning nginx block.conf"
+        truncate -s 0 /etc/nginx/conf.d/block.conf
+        nginx_running=$(/usr/local/vesta/bin/v-list-sys-services | grep 'nginx' | grep -c 'running')
+        if [ $nginx_running -eq 1 ]; then
+            echo "== Restarting nginx"
+            systemctl restart nginx
+        fi
+    fi
+fi
+if [ $fail2ban_running -eq 1 ]; then
+    echo "== Starting fail2ban"
+    systemctl start fail2ban
+fi
+
+echo "== Done, fail2ban database cleaned"
+
+log_event "$OK" "$ARGUMENTS"
+
+exit

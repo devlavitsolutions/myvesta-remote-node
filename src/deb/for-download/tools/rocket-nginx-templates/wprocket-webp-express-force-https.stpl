@@ -1,0 +1,73 @@
+server {
+    listen      %ip%:%proxy_ssl_port% ssl http2;
+    server_name %domain_idn% %alias_idn%;
+
+    ssl_certificate      %ssl_pem%;
+    ssl_certificate_key  %ssl_key%;
+    error_log  /var/log/%web_system%/domains/%domain%.error.log error;
+
+    root           %sdocroot%;
+
+    # Serve WebP if browser supports it
+    location ~* ^/wp-content/.*\.(png|jpe?g)$ {
+        add_header Vary Accept;
+        expires 365d;
+    
+        if ($http_accept !~* "webp") {
+            break;
+        }
+    
+        try_files
+            /wp-content/webp-express/webp-images/doc-root/$uri.webp
+            $uri.webp
+            @webp_on_demand;
+    }
+    
+    # Route .webp requests to converter if not found
+    location @webp_on_demand {
+        proxy_pass      https://%ip%:%web_ssl_port%;
+    }
+    
+    # Allow .webp passthrough (trigger php fallback if not found)
+    location ~* ^/wp-content/.*\.(png|jpe?g)\.webp$ {
+        try_files
+            $uri
+            @webp_realizer;
+    }
+    
+    location @webp_realizer {
+        proxy_pass      https://%ip%:%web_ssl_port%;
+    }
+    
+    # Allow PHP access to WebP Express WOD handler
+    location ~ ^/wp-content/plugins/webp-express/wod/.*\.php$ {
+        proxy_pass      https://%ip%:%web_ssl_port%;
+    }
+
+    # Rocket-Nginx configuration
+    include rocket-nginx/conf.d/default.conf;
+
+    location / {
+        proxy_pass      https://%ip%:%web_ssl_port%;
+    }
+
+    location /error/ {
+        alias   %home%/%user%/web/%domain%/document_errors/;
+    }
+
+    location @fallback {
+        proxy_pass      https://%ip%:%web_ssl_port%;
+    }
+
+    location ~ /\.ht    {return 404;}
+    location ~ /\.env   {return 404;}
+    location ~ /\.svn/  {return 404;}
+    location ~ /\.git/  {return 404;}
+    location ~ /\.hg/   {return 404;}
+    location ~ /\.bzr/  {return 404;}
+
+    disable_symlinks if_not_owner from=%docroot%;
+
+    include %home%/%user%/conf/web/*nginx.%domain_idn%.conf_letsencrypt;
+    include %home%/%user%/conf/web/s%proxy_system%.%domain%.conf*;
+}

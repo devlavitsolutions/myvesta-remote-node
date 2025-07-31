@@ -1,0 +1,110 @@
+#!/bin/bash
+# info: fix compromised wp-admin and wp-includes
+# options: DOMAIN [CACHE_DIR]
+#
+# Replaces wp-admin and wp-includes with clean copies that match
+# the WordPress core version detected on the site.
+#
+# Example:
+#   v-fix-wp-core example.com
+#   v-fix-wp-core example.com /srv/wp-cache
+
+#----------------------------------------------------------#
+#                    Variable & Function                   #
+#----------------------------------------------------------#
+
+# Arguments
+DOMAIN="$1"
+CACHE_DIR="${2-/srv/wp-cache}"       # default cache location
+
+QUARANTINE_DIR="/srv/wp-quarantine"
+
+# Includes
+source $VESTA/func/main.sh
+source $VESTA/conf/vesta.conf
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+check_args '1' "$#" 'DOMAIN [CACHE_DIR]'
+is_format_valid 'domain'
+
+#----------------------------------------------------------#
+#                         Action                           #
+#----------------------------------------------------------#
+
+TMP_DIR="$(mktemp -d /tmp/wpfix.XXXXXX)"  # temp workspace
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+# 1etermine WP version
+WP_VERSION="$(/usr/local/vesta/bin/v-run-wp-cli "$DOMAIN" core version | tr -d '[:space:]')"
+check_result $? "cannot detect WP version" > /dev/null
+if [ -z "$WP_VERSION" ]; then
+    check_result 1 "empty WP version string"
+fi
+echo "Detected WordPress version $WP_VERSION"
+
+# 2ind site owner and path
+USER="$(/usr/local/vesta/bin/v-search-domain-owner "$DOMAIN")"
+check_result $? "cannot find domain owner" > /dev/null
+SITE_PATH="/home/$USER/web/$DOMAIN/public_html"
+if [ ! -d "$SITE_PATH" ]; then
+    check_result 1 "site path $SITE_PATH does not exist"
+fi
+
+# ensure cached core is present
+CACHE_PATH="$CACHE_DIR/$WP_VERSION"
+if [ ! -d "$CACHE_PATH/wp-admin" ] || [ ! -d "$CACHE_PATH/wp-includes" ]; then
+    echo "Cache for $WP_VERSION missing, downloading ZIP..."
+
+    mkdir -p "$CACHE_PATH"
+    ZIP_URL="https://wordpress.org/wordpress-${WP_VERSION}.zip"
+    ZIP_FILE="$TMP_DIR/wp.zip"
+
+    curl -fSL "$ZIP_URL" -o "$ZIP_FILE"
+    check_result $? "download failed" > /dev/null
+
+    unzip -q "$ZIP_FILE" -d "$TMP_DIR"
+    check_result $? "unzip failed" > /dev/null
+
+    mv "$TMP_DIR/wordpress/wp-admin"    "$CACHE_PATH/"
+    mv "$TMP_DIR/wordpress/wp-includes" "$CACHE_PATH/"
+    cp "$TMP_DIR/wordpress"/*.php "$CACHE_PATH/"
+fi
+
+# backup current core folders
+TIMESTAMP="$(date +%Y%m%d%H%M%S)"
+BACKUP_DIR="$QUARANTINE_DIR/$DOMAIN/backup-core-$TIMESTAMP"
+mkdir -p "$BACKUP_DIR"
+mv "$SITE_PATH/wp-admin"    "$BACKUP_DIR/"
+mv "$SITE_PATH/wp-includes" "$BACKUP_DIR/"
+
+for f in "$SITE_PATH"/*.php; do
+    [[ $(basename "$f") == "wp-config.php" ]] && continue
+    mv "$f" "$BACKUP_DIR/"
+done
+if [ -f "$SITE_PATH/.user.ini" ]; then
+    mv "$SITE_PATH/.user.ini" "$BACKUP_DIR/"
+fi
+
+# chown -R www-data:www-data "$BACKUP_DIR"
+check_result $? "backup failed" > /dev/null
+echo "Old core folders moved to $BACKUP_DIR"
+
+# deploy clean core
+rsync -a --delete "$CACHE_PATH/wp-admin/"    "$SITE_PATH/wp-admin/"
+rsync -a --delete "$CACHE_PATH/wp-includes/" "$SITE_PATH/wp-includes/"
+check_result $? "rsync failed" > /dev/null
+
+for corephp in "$CACHE_PATH"/*.php; do
+    base=$(basename "$corephp")
+    [ "$base" = "wp-config.php" ] && continue
+    rsync -a "$corephp" "$SITE_PATH/$base"
+done
+
+# fix permissions
+SKIP_OWNERSHIP_CHECK=1 /usr/local/vesta/bin/v-fix-website-permissions $DOMAIN
+# chown -R www-data:www-data "$BACKUP_DIR"
+
+echo "Done, core WP files, wp-admin and wp-includes replaced for $DOMAIN"
+exit

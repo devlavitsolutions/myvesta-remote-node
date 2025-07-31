@@ -1,0 +1,9 @@
+header IN_BCUDA_RBL rbleval:check_rbl('bcuda', 'b.barracudacentral.org')
+describe IN_BCUDA_RBL Received via a relay listed by Barracuda BRBL
+tflags IN_BCUDA_RBL net
+score RCVD_IN_BCUDA_RBL 1.00
+
+header RCVD_IN_BCUDA_RELAY rbleval:check_rbl_sub('bcuda', '127.0.0.2')
+describe RCVD_IN_BCUDA_RELAY BCUDA: relay ip is convicted spammer
+tflags RCVD_IN_BCUDA_RELAY net
+score RCVD_IN_BCUDA_RELAY 4.00

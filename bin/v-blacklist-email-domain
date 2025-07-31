@@ -1,0 +1,133 @@
+#!/bin/bash
+# info: Add a domain to exim4 and spamassassin blacklist
+# usage: v-blacklist-email-domain DOMAIN SUBDOMAIN(YES/NO)
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ]; then
+    echo "You must be root to execute this script"
+    exit 1
+fi
+
+# Importing system environment
+source /etc/profile
+
+# Determine Debian version and set SpamAssassin service name
+release=$(cat /etc/debian_version | tr "." "\n" | head -n1)
+if [ "$release" -lt 12 ]; then
+    SPAMD_SERVICE="spamassassin.service"
+else
+    SPAMD_SERVICE="spamd.service"
+fi
+
+DENY_SENDERS_FILE="/etc/exim4/deny_senders"
+SPAMASSASSIN_FILE="/etc/spamassassin/local.cf"
+
+# Flags to track changes
+SPAMASSASSIN_CHANGED=false
+
+# Function to check if a domain already exists in a file
+check_domain_exists() {
+    local domain=$1
+    local file=$2
+    grep -qE "^${domain}$" "$file"
+}
+
+# Function to check if a SpamAssassin entry already exists
+check_spamassassin_exists() {
+    local entry=$1
+    local file=$2
+    grep -qF "$entry" "$file"
+}
+
+# Function to add domain to file
+add_domain_to_file() {
+    local domain=$1
+    local file=$2
+    echo "$domain" >> "$file"
+}
+
+# Display usage if no arguments are provided
+if [ $# -lt 2 ]; then
+    echo "Usage: v-blacklist-domain DOMAIN SUBDOMAIN(YES/NO)"
+    exit 1
+fi
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+DOMAIN=$1
+SUBDOMAIN=${2^^} # Convert to uppercase for consistency (YES/NO)
+
+# Validate SUBDOMAIN parameter
+if [[ "$SUBDOMAIN" != "YES" && "$SUBDOMAIN" != "NO" ]]; then
+    echo "Invalid parameter for SUBDOMAIN. Use YES or NO."
+    exit 1
+fi
+
+# Prepare entries for Exim4
+EXIM_ENTRY_MAIN="$DOMAIN"
+EXIM_ENTRY_SUB="*.$DOMAIN"
+
+# Prepare entries for SpamAssassin
+SPAMASSASSIN_ENTRY_MAIN="blacklist_from *@${DOMAIN}"
+SPAMASSASSIN_ENTRY_SUB="blacklist_from *.$DOMAIN"
+
+#----------------------------------------------------------#
+#                   Exim4 Blacklist                        #
+#----------------------------------------------------------#
+
+echo "Updating $DENY_SENDERS_FILE..."
+if ! check_domain_exists "$EXIM_ENTRY_MAIN" "$DENY_SENDERS_FILE"; then
+    add_domain_to_file "$EXIM_ENTRY_MAIN" "$DENY_SENDERS_FILE"
+    echo "Added $EXIM_ENTRY_MAIN to $DENY_SENDERS_FILE."
+else
+    echo "$EXIM_ENTRY_MAIN already exists in $DENY_SENDERS_FILE."
+fi
+
+if [ "$SUBDOMAIN" == "YES" ]; then
+    if ! check_domain_exists "$EXIM_ENTRY_SUB" "$DENY_SENDERS_FILE"; then
+        add_domain_to_file "$EXIM_ENTRY_SUB" "$DENY_SENDERS_FILE"
+        echo "Added $EXIM_ENTRY_SUB to $DENY_SENDERS_FILE."
+    else
+        echo "$EXIM_ENTRY_SUB already exists in $DENY_SENDERS_FILE."
+    fi
+fi
+
+#----------------------------------------------------------#
+#                SpamAssassin Blacklist                    #
+#----------------------------------------------------------#
+
+echo "Updating $SPAMASSASSIN_FILE..."
+if ! check_spamassassin_exists "$SPAMASSASSIN_ENTRY_MAIN" "$SPAMASSASSIN_FILE"; then
+    add_domain_to_file "$SPAMASSASSIN_ENTRY_MAIN" "$SPAMASSASSIN_FILE"
+    echo "Added $SPAMASSASSIN_ENTRY_MAIN to $SPAMASSASSIN_FILE."
+    SPAMASSASSIN_CHANGED=true
+else
+    echo "$SPAMASSASSIN_ENTRY_MAIN already exists in $SPAMASSASSIN_FILE."
+fi
+
+if [ "$SUBDOMAIN" == "YES" ]; then
+    if ! check_spamassassin_exists "$SPAMASSASSIN_ENTRY_SUB" "$SPAMASSASSIN_FILE"; then
+        add_domain_to_file "$SPAMASSASSIN_ENTRY_SUB" "$SPAMASSASSIN_FILE"
+        echo "Added $SPAMASSASSIN_ENTRY_SUB to $SPAMASSASSIN_FILE."
+        SPAMASSASSIN_CHANGED=true
+    else
+        echo "$SPAMASSASSIN_ENTRY_SUB already exists in $SPAMASSASSIN_FILE."
+    fi
+fi
+
+if [ "$SPAMASSASSIN_CHANGED" == "true" ]; then
+    systemctl restart "$SPAMD_SERVICE"
+    echo "SpamAssassin service ($SPAMD_SERVICE) restarted."
+fi
+
+#----------------------------------------------------------#
+#                       Done                               #
+#----------------------------------------------------------#
+
+exit 0

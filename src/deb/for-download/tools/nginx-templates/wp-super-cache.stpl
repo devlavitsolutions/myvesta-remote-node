@@ -1,0 +1,87 @@
+server {
+    listen      %ip%:%proxy_ssl_port% ssl;
+    http2 on;
+    server_name %domain_idn% %alias_idn%;
+    root           %sdocroot%;
+
+    ssl_certificate      %ssl_pem%;
+    ssl_certificate_key  %ssl_key%;
+    error_log  /var/log/%web_system%/domains/%domain%.error.log error;
+
+    set $cache_uri $request_uri;
+    set $caching 'ON';
+
+    # POST requests and urls with a query string should always go to PHP
+    if ($request_method = POST) {
+    	set $caching 'OFF';
+    }
+
+    if ($query_string ~* "(fb_action_ids=|fb_action_types=|fb_source=|fbclid=|utm_source=|utm_campaign=|utm_medium=|utm_expid=|utm_term=|utm_content=|utm_id=|utm_source_platform=|utm_creative_format=|utm_marketing_tactic=|_ga=|gclid=|campaignid=|adgroupid=|adid=|gbraid=|wbraid=|_gl=|gclsrc=|gdfms=|gdftrk=|gdffi=|_ke=|_kx=|trk_contact=|trk_msg=|trk_module=|trk_sid=|mc_cid=|mc_eid=|mkwid=|pcrid=|mtm_source=|mtm_medium=|mtm_campaign=|mtm_keyword=|mtm_cid=|mtm_content=|msclkid=|epik=|pp=|pk_source=|pk_medium=|pk_campaign=|pk_keyword=|pk_cid=|pk_content=|redirect_log_mongo_id=|redirect_mongo_id=|sb_referer_host=)") {
+        set $query_string_cachable 1;
+    }
+
+    if ($query_string != "") {
+        set $query_string_cacheable 1$query_string_cacheable;
+    }   
+
+    if ($query_string_cacheable = 11) {
+        set $caching 'ON';
+    }
+
+    if ($query_string_cacheable = 1) {
+        set $caching 'OFF';
+    }
+
+    # Don't cache uris containing the following segments
+    if ($request_uri ~* "(/wp-admin/|/xmlrpc.php|/wp-(app|cron|login|register|mail).php|wp-.*.php|/feed/|index.php|wp-comments-popup.php|wp-links-opml.php|wp-locations.php|sitemap(_index)?.xml|[a-z0–9_-]+-sitemap([0–9]+)?.xml)") {
+	set $caching 'OFF';
+    }
+    
+    # Don't use the cache for logged-in users or recent commenters
+    if ($http_cookie ~* "comment_author|wordpress_[a-f0–9]+|wp-postpass|wordpress_logged_in") {
+	set $caching 'OFF';
+    }
+    
+    if ($caching = 'ON') {
+    	set $cachefile "/wp-content/cache/supercache/$http_host/$cache_uri/index-https.html";   
+    	set $cachestatus 'HIT'; 
+    }
+
+    if ($caching = 'OFF') {
+       set $cachestatus 'MISS';
+    }
+    
+    add_header X-Cache-Status $cachestatus;
+    add_header X-Cache-File $cachefile;
+
+    location / {
+        try_files $cachefile @fallback;
+        location ~* ^.+\.(%proxy_extentions%)$ {
+            root           %sdocroot%;
+            access_log     /var/log/%web_system%/domains/%domain%.log combined;
+            access_log     /var/log/%web_system%/domains/%domain%.bytes bytes;
+            expires        max;
+            # try_files      $uri @fallback;
+        }
+    }
+
+    location /error/ {
+        alias   %home%/%user%/web/%domain%/document_errors/;
+    }
+
+    location @fallback {
+        proxy_pass      https://%ip%:%web_ssl_port%;
+    }
+
+    location ~ /\.ht    {return 404;}
+    location ~ /\.env   {return 404;}
+    location ~ /\.svn/  {return 404;}
+    location ~ /\.git/  {return 404;}
+    location ~ /\.hg/   {return 404;}
+    location ~ /\.bzr/  {return 404;}
+
+    disable_symlinks if_not_owner from=%docroot%;
+
+    include %home%/%user%/conf/web/*nginx.%domain_idn%.conf_letsencrypt;
+    include %home%/%user%/conf/web/s%proxy_system%.%domain%.conf*;
+}

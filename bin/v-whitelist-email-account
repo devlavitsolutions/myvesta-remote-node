@@ -1,0 +1,119 @@
+#!/bin/bash
+# info: Add a specific email address to SpamAssassin whitelist
+# usage: v-whitelist-email-account EMAIL
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ]; then
+    echo "You must be root to execute this script"
+    exit 1
+fi
+
+# Importing system environment
+source /etc/profile
+
+# Determine Debian version and set SpamAssassin service name
+release=$(cat /etc/debian_version | tr "." "\n" | head -n1)
+if [ "$release" -lt 12 ]; then
+    SPAMD_SERVICE="spamassassin.service"
+else
+    SPAMD_SERVICE="spamd.service"
+fi
+
+SPAMASSASSIN_FILE="/etc/spamassassin/local.cf"
+
+# Flags to track changes
+SPAMASSASSIN_CHANGED=false
+
+# Function to check if an entry already exists in a file
+check_entry_exists() {
+    local entry=$1
+    local file=$2
+    grep -qF "$entry" "$file"
+}
+
+# Function to check if a domain/email is already blacklisted
+check_blacklisted() {
+    local pattern=$1
+    local file=$2
+    grep -qE "blacklist_from.*${pattern}" "$file"
+}
+
+# Function to add an entry to a file
+add_entry_to_file() {
+    local entry=$1
+    local file=$2
+    echo "$entry" >> "$file"
+}
+
+# Display usage if no arguments are provided
+if [ $# -lt 1 ]; then
+    echo "Usage: v-whitelist-email-account EMAIL"
+    exit 1
+fi
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+EMAIL=$1
+
+# Validate email format
+if [[ ! "$EMAIL" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+    echo "Invalid email address format."
+    exit 1
+fi
+
+# Extract the domain from the email address
+DOMAIN=$(echo "$EMAIL" | awk -F '@' '{print $2}')
+
+# Prepare entries for SpamAssassin
+WHITELIST_ENTRY="whitelist_from $EMAIL"
+BLACKLIST_ENTRY_MAIN="*@${DOMAIN}"
+BLACKLIST_ENTRY_SUB="*.$DOMAIN"
+
+#----------------------------------------------------------#
+#                SpamAssassin Whitelist                    #
+#----------------------------------------------------------#
+
+echo "Updating $SPAMASSASSIN_FILE..."
+
+# Check if the email address or its domain is already blacklisted
+if check_blacklisted "$EMAIL" "$SPAMASSASSIN_FILE"; then
+    echo "Cannot whitelist $EMAIL. It is already blacklisted."
+    exit 1
+fi
+
+if check_blacklisted "$BLACKLIST_ENTRY_MAIN" "$SPAMASSASSIN_FILE"; then
+    echo "Cannot whitelist $EMAIL. The domain $DOMAIN is already blacklisted."
+    exit 1
+fi
+
+if check_blacklisted "$BLACKLIST_ENTRY_SUB" "$SPAMASSASSIN_FILE"; then
+    echo "Cannot whitelist $EMAIL. The subdomain of $DOMAIN is already blacklisted."
+    exit 1
+fi
+
+# Add the email to whitelist if not already present
+if ! check_entry_exists "$WHITELIST_ENTRY" "$SPAMASSASSIN_FILE"; then
+    add_entry_to_file "$WHITELIST_ENTRY" "$SPAMASSASSIN_FILE"
+    echo "Added $WHITELIST_ENTRY to $SPAMASSASSIN_FILE."
+    SPAMASSASSIN_CHANGED=true
+else
+    echo "$WHITELIST_ENTRY already exists in $SPAMASSASSIN_FILE."
+fi
+
+# Restart SpamAssassin only if changes were made
+if [ "$SPAMASSASSIN_CHANGED" == "true" ]; then
+    systemctl restart "$SPAMD_SERVICE"
+    echo "SpamAssassin service ($SPAMD_SERVICE) restarted."
+fi
+
+#----------------------------------------------------------#
+#                       Done                               #
+#----------------------------------------------------------#
+
+exit 0

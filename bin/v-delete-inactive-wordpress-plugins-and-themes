@@ -1,0 +1,165 @@
+#!/bin/bash
+# info: delete inactive WordPress plugins and themes
+# options: DOMAIN
+
+#----------------------------------------------------------#
+#                    Variable & Function                   #
+#----------------------------------------------------------#
+
+[ "$(whoami)" != "root" ] && { echo "You must be root to run this command."; exit 1; }
+source /etc/profile
+
+DOMAIN="$1"
+[ -z "$DOMAIN" ] && { echo "Usage: v-delete-inactive-wordpress-plugins-and-themes DOMAIN"; exit 1; }
+
+USER="$(/usr/local/vesta/bin/v-search-domain-owner "$DOMAIN")"
+[ -z "$USER" ] && { echo "Domain $DOMAIN does not exist."; exit 1; }
+
+WP_PATH="/home/$USER/web/$DOMAIN/public_html"
+[ ! -f "$WP_PATH/wp-config.php" ] && { echo "WordPress is not installed on this domain."; exit 1; }
+
+# WP-CLI wrapper
+if [ ! -z "$PHP" ]; then
+    WP_RUN="PHP=$PHP /usr/local/vesta/bin/v-run-wp-cli $DOMAIN --skip-plugins --skip-themes"
+else
+    WP_RUN="/usr/local/vesta/bin/v-run-wp-cli $DOMAIN --skip-plugins --skip-themes"
+fi
+
+quarantined=0;
+
+#----------------------------------------------------------#
+#                         Action                           #
+#----------------------------------------------------------#
+
+cd "$WP_PATH" || exit 1
+echo "Inactive WordPress plugins for $DOMAIN:"
+echo "-------------------------------------"
+
+RUN="$WP_RUN plugin list --format=csv --skip-plugins --skip-themes"
+PLUGINS_LIST_CSV=$(eval "$RUN")
+return_code=$?
+
+if [ $return_code -ne 0 ]; then
+    echo "WP-CLI error:"
+    echo "return code: $return_code"
+    cat /home/$USER/web/$DOMAIN/wp-cli-error.log
+    exit $return_code
+fi
+
+PLUGINS_LIST_CSV=$(echo "$PLUGINS_LIST_CSV" | tail -n +2)
+
+DEACTIVATED_PLUGINS_LIST_CSV=""
+
+if [ ! -z "$PLUGINS_LIST_CSV" ]; then
+    printf "%-30s %-20s %-20s %-20s %-20s %-20s\n" "name" "status" "update" "version" "update_version" "auto_update"
+    while IFS=',' read -r NAME STATUS UPDATE VERSION UPDATE_VERSION AUTO_UPDATE; do
+        if [ "$STATUS" = "inactive" ]; then
+            printf "%-30s %-20s %-20s %-20s %-20s %-20s\n" "$NAME" "$STATUS" "$UPDATE" "$VERSION" "$UPDATE_VERSION" "$AUTO_UPDATE"
+            DEACTIVATED_PLUGINS_LIST_CSV="$DEACTIVATED_PLUGINS_LIST_CSV\n$NAME"
+        fi
+    done <<< "$PLUGINS_LIST_CSV"
+else
+    echo "No plugins found."
+fi
+
+if [ ! -z "$DEACTIVATED_PLUGINS_LIST_CSV" ]; then
+    echo ""
+    read -r -p "Do you want to move inactive plugins to quarantine? (y/n, default: y): " RESPONSE < /dev/tty
+    if [ "$RESPONSE" == "y" ] || [ "$RESPONSE" == "Y" ] || [ -z "$RESPONSE" ]; then
+        while IFS=',' read -r NAME STATUS UPDATE VERSION UPDATE_VERSION AUTO_UPDATE; do
+            if [ "$STATUS" = "inactive" ]; then
+                folder="/home/$USER/web/$DOMAIN/public_html/wp-content/plugins/$NAME"
+                file="/home/$USER/web/$DOMAIN/public_html/wp-content/plugins/$NAME.php"
+                if [ -d "$folder" ] || [ -f "$file" ]; then
+                    destination_base_folder="/srv/wp-deactivated-plugins/$DOMAIN"
+                    if [ -d "$folder" ]; then
+                        source_path="$folder"
+                        destination_path="$destination_base_folder/$NAME"
+                    elif [ -f "$file" ]; then
+                        source_path="$file"
+                        destination_path="$destination_base_folder/$NAME.php"
+                    fi
+                    mkdir -p $destination_base_folder
+                    chown $USER:$USER $destination_base_folder
+                    mv $source_path $destination_path
+                    if [ -d "$destination_path" ]; then
+                        echo "= Folder $source_path moved to $destination_path"
+                        quarantined=1;
+                    fi
+                    if [ -f "$destination_path" ]; then
+                        echo "= File $source_path moved to $destination_path"
+                        quarantined=1;
+                    fi
+                else
+                    echo "=== ERROR: Folder $folder or file $file not found - it does not exist?"
+                fi
+            fi
+        done <<< "$PLUGINS_LIST_CSV"
+    fi
+fi
+
+echo ""
+echo "Inactive WordPress themes for $DOMAIN:"
+echo "-------------------------------------"
+
+RUN="$WP_RUN theme list --format=csv --skip-plugins --skip-themes"
+THEMES_LIST_CSV=$(eval "$RUN")
+return_code=$?
+
+if [ $return_code -ne 0 ]; then
+    echo "WP-CLI error:"
+    echo "return code: $return_code"
+    cat /home/$USER/web/$DOMAIN/wp-cli-error.log
+    exit $return_code
+fi
+
+THEMES_LIST_CSV=$(echo "$THEMES_LIST_CSV" | tail -n +2)
+
+DEACTIVATED_THEMES_LIST_CSV=""
+
+if [ ! -z "$THEMES_LIST_CSV" ]; then
+    printf "%-30s %-20s %-20s %-20s %-20s %-20s\n" "name" "status" "update" "version" "update_version" "auto_update"
+    while IFS=',' read -r NAME STATUS UPDATE VERSION UPDATE_VERSION AUTO_UPDATE; do
+        if [ "$STATUS" = "inactive" ]; then
+            printf "%-30s %-20s %-20s %-20s %-20s %-20s\n" "$NAME" "$STATUS" "$UPDATE" "$VERSION" "$UPDATE_VERSION" "$AUTO_UPDATE"
+            DEACTIVATED_THEMES_LIST_CSV="$DEACTIVATED_THEMES_LIST_CSV\n$NAME"
+        fi
+    done <<< "$THEMES_LIST_CSV"
+else
+    echo "No themes found."
+fi
+
+if [ ! -z "$DEACTIVATED_THEMES_LIST_CSV" ]; then
+    echo ""
+    read -r -p "Do you want to move inactive themes to quarantine? (y/n, default: y): " RESPONSE < /dev/tty
+    if [ "$RESPONSE" == "y" ] || [ "$RESPONSE" == "Y" ] || [ -z "$RESPONSE" ]; then
+        while IFS=',' read -r NAME STATUS UPDATE VERSION UPDATE_VERSION AUTO_UPDATE; do
+            if [ "$STATUS" = "inactive" ]; then
+                folder="/home/$USER/web/$DOMAIN/public_html/wp-content/themes/$NAME"
+                if [ -d "$folder" ]; then
+                    destination_base_folder="/srv/wp-deactivated-themes/$DOMAIN"
+                    source_path="$folder"
+                    destination_path="$destination_base_folder/$NAME"
+                    mkdir -p $destination_base_folder
+                    chown $USER:$USER $destination_base_folder
+                    mv $source_path $destination_path
+                    if [ -d "$destination_path" ]; then
+                        echo "= Folder $source_path moved to $destination_path"
+                        quarantined=1;
+                    fi
+                else
+                    echo "=== ERROR: Folder $folder not found - it does not exist?"
+                fi
+            fi
+        done <<< "$THEMES_LIST_CSV"
+    fi
+fi
+
+echo ""
+if [ $quarantined -eq 1 ]; then
+    echo "= All deactivated plugins and themes moved to quarantine."
+    echo "= You can find them in /srv/wp-deactivated-plugins/$DOMAIN and /srv/wp-deactivated-themes/$DOMAIN"
+else
+    echo "= No deactivated plugins or themes found."
+fi
+exit 0;

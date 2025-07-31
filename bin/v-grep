@@ -1,0 +1,27 @@
+#!/bin/bash
+# info: calling myvesta_grep PHP function
+# options: PARAMETERS
+#
+# The function is calling myVesta PHP replacement for GNU 'grep' command (but without regular expression)
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+
+if [ "$1" == "--stdin" ] && [ -p /dev/stdin ]; then
+    STDIN=$(cat -)
+    if [ ! -z "$STDIN" ]; then
+        shift;
+        echo "$STDIN" | php /usr/local/vesta/func/bash-to-php-interpreter.php '--stdin' 'myvesta_grep' "$@"
+        exit $?
+    fi
+fi
+
+if [ "$1" == "--stdin" ]; then
+    shift;
+    php /usr/local/vesta/func/bash-to-php-interpreter.php '--stdin' 'myvesta_grep' "$@"
+else
+    php /usr/local/vesta/func/bash-to-php-interpreter.php 'myvesta_grep' "$@"
+fi
+exit $?

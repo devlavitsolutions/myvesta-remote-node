@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Stop Apache server
+echo "Stopping Apache server..."
+systemctl stop apache2
+
+# Check if Apache stopped successfully
+if systemctl is-active --quiet apache2; then
+  echo "Apache failed to stop!"
+else
+  echo "Apache stopped successfully."
+fi
+
+# Start LiteSpeed server
+echo "Starting LiteSpeed server..."
+systemctl start lsws
+
+# Check if LiteSpeed started successfully
+if systemctl is-active --quiet lsws; then
+  echo "LiteSpeed started successfully."
+else
+  echo "LiteSpeed failed to start."
+fi

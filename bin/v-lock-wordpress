@@ -1,0 +1,93 @@
+#!/bin/bash
+# info: Lock WordPress files if they are potentially infected (somewhere) by PHP malware, in order to stop further infection
+# options: DOMAIN
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ]; then
+    echo "You must be root to execute this script"
+    exit 1
+fi
+
+# Importing system environment
+source /etc/profile
+
+# Argument definition
+domain=$1
+
+user=$(/usr/local/vesta/bin/v-search-domain-owner $domain)
+USER=$user
+
+# Includes
+source /usr/local/vesta/func/main.sh
+
+if [ -z "$user" ]; then
+    check_result $E_NOTEXIST "domain $domain doesn't exist"
+fi
+
+unlock_folder() {
+    chown -R $user:$user $1/
+
+    # block .php execution inside folder
+    cat <<EOF >$1/.htaccess
+RewriteEngine on
+RewriteRule ^.*\.(?:php[1-6]?|pht|phtml?)$ - [NC,F]
+EOF
+
+    chown root:root $1/.htaccess
+}
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+check_args '1' "$#" 'DOMAIN'
+is_format_valid 'domain'
+is_object_valid 'user' 'USER' "$user"
+is_object_unsuspended 'user' 'USER' "$user"
+
+if [ ! -d "/home/$user" ]; then
+    echo "User doesn't exist";
+    exit 1;
+fi
+
+if [ ! -d "/home/$user/web/$domain/public_html" ]; then
+    echo "Domain doesn't exist";
+    exit 1;
+fi
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+cd /home/$user/web/$domain
+
+# lock files
+chown -R www-data:www-data public_html/
+
+# set correct chmod just in case
+find public_html/ -type d -exec chmod 755 {} +
+find public_html/ -type f -exec chmod 644 {} +
+
+# unlock /wp-content/uploads/ for uploading
+if [ -d "/home/$user/web/$domain/public_html/wp-content/uploads" ]; then
+    unlock_folder "public_html/wp-content/uploads"
+fi
+
+# unlock /wp-content/cache/ for caching
+if [ -d "/home/$user/web/$domain/public_html/wp-content/cache" ]; then
+    unlock_folder "public_html/wp-content/cache"
+fi
+
+#----------------------------------------------------------#
+#                       Vesta                              #
+#----------------------------------------------------------#
+
+echo "v-lock-wordpress: Done."
+
+log_event "$OK" "$ARGUMENTS"
+
+exit

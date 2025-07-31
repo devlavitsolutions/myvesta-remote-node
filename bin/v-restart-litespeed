@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# This script restarts OpenLiteSpeed on Ubuntu
+
+echo "Restarting LiteSpeed server..."
+
+systemctl restart litespeed
+
+echo "LiteSpeed server has been restarted."
+
+exit 0

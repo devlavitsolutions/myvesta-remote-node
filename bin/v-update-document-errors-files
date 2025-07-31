@@ -1,0 +1,48 @@
+#!/bin/bash
+# info: fix website permissions for all websites
+# options:
+#
+# The command is used for fixing website permissions for all websites on the server.
+
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+# Importing system variables
+source /etc/profile
+
+# Includes
+source $VESTA/func/main.sh
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+for user in $(grep '@' /etc/passwd |cut -f1 -d:); do
+    if [ ! -f "/usr/local/vesta/data/users/$user/user.conf" ]; then
+        continue;
+    fi
+
+    for domain in $(/usr/local/vesta/bin/v-list-web-domains $user plain |cut -f 1); do
+        cp /usr/local/vesta/data/templates/web/skel/document_errors/403.html /home/$user/web/$domain/document_errors/403.html
+        cp /usr/local/vesta/data/templates/web/skel/document_errors/404.html /home/$user/web/$domain/document_errors/404.html
+        cp /usr/local/vesta/data/templates/web/skel/document_errors/50x.html /home/$user/web/$domain/document_errors/50x.html
+        sed -i "s/%domain%/$domain/g" /home/$user/web/$domain/document_errors/403.html
+        sed -i "s/%domain%/$domain/g" /home/$user/web/$domain/document_errors/404.html
+        sed -i "s/%domain%/$domain/g" /home/$user/web/$domain/document_errors/50x.html
+        chown $user:$user /home/$user/web/$domain/document_errors/*
+        chmod 644 /home/$user/web/$domain/document_errors/*
+    done
+
+done
+
+
+#----------------------------------------------------------#
+#                       Vesta                              #
+#----------------------------------------------------------#
+
+# Logging
+log_event "$OK" "$ARGUMENTS"
+
+exit

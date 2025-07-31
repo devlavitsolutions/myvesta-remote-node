@@ -1,0 +1,159 @@
+<div class="right_sidebar" style="width: 240px; position: fixed; display: block; z-index: 98; top: 50px; right: <?=$GLOBALS['right_sidebar_right']?>px; box-sizing: border-box; height: 100%; background: #fff; border-left: 1px solid #dee5e8;">
+<div class="io-log">
+  <h2 class="io-log-h2" id="iologbutton">
+    <?php
+    if ($GLOBALS['CURRENT_USER_FINAL']=='admin') echo __('Server');
+    else echo __('Account');
+    ?>
+  </h2>
+    <div>
+
+<?php
+    if ($GLOBALS['CURRENT_USER_FINAL']=='admin') {
+        $sysload=sys_getloadavg();
+        $sysload[0]=number_format((float)$sysload[0], 2, '.', '');
+        $sysload[1]=number_format((float)$sysload[1], 2, '.', '');
+        $sysload[2]=number_format((float)$sysload[2], 2, '.', '');
+?>
+      <div>
+        <div>
+          <div>
+          </div>
+          <div>
+            <div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div>
+            <?=__('CPU')?>
+          </div>
+          <div>
+            
+          </div>
+        </div>
+        <div>
+          <div>
+            <?=$sysload[0]?>&nbsp;&nbsp;&nbsp;&nbsp;<?=$sysload[1]?>&nbsp;&nbsp;&nbsp;&nbsp;<?=$sysload[2]?>
+          </div>
+        </div>
+      </div>
+<?php
+    } else {
+?>
+      <div>
+        <div>
+          <div>
+          </div>
+          <div>
+            <div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div>
+            <?=__('Disk')?>
+          </div>
+          <div>
+            
+          </div>
+        </div>
+        <div>
+          <div>
+            <?php
+                $output='';
+                exec (VESTA_CMD . "v-list-user ".$GLOBALS['CURRENT_USER_FINAL']." json", $output, $return_var);
+                $data = json_decode(implode('', $output), true);
+                $data = array_reverse($data,true);
+                //print_r($data); exit;
+                $key=$GLOBALS['CURRENT_USER_FINAL'];
+                if ($data[$key]['DISK_QUOTA']=='unlimited') echo __('unlimited');
+                else echo get_percentage($data[$key]['U_DISK'],$data[$key]['DISK_QUOTA']).' %';
+            ?>
+          </div>
+        </div>
+      </div>
+<?php
+    }
+    if ($GLOBALS['CURRENT_USER_FINAL']=='admin') {
+        $output='';
+        exec ("df -h | grep '^/dev'", $output, $return_var);
+        foreach($output as $line) {
+        while(strpos($line, '  ')!==false) $line=str_replace('  ', ' ', $line);
+        $disk_arr=explode(' ', $line);
+        $percent=$disk_arr[4];
+        $disk=$disk_arr[5];
+        if (strpos($disk, "/boot")!==false) continue;
+        if (strpos($disk, "/efi")!==false) continue;
+?>
+      <div>
+        <div>
+          <div>
+          </div>
+          <div>
+            <div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div>
+            <?=__('Disk').' '.$disk?>
+          </div>
+          <div>
+
+          </div>
+        </div>
+        <div>
+          <div>
+            <?=$percent?>
+          </div>
+        </div>
+      </div>
+<?php }
+    }
+?>
+</div>
+
+</div>
+
+<div class="io-log2">
+  <h2 class="io-log2-h2" id="iologbutton2">
+    <?=__('Log')?>
+  </h2>
+    <div>
+<?php
+$output='';
+exec (VESTA_CMD."v-list-user-log ".$GLOBALS['CURRENT_USER_FINAL']." json 25", $output, $return_var);
+check_error($return_var);
+$data = json_decode(implode('', $output), true);
+foreach ($data as $key => $value) {
+    ++$i;
+?>
+
+      <div>
+        <div>
+          <div>
+          </div>
+          <div>
+            <div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div>
+            <?=translate_date($data[$key]['DATE'])?>
+          </div>
+          <div>
+            <?=$data[$key]['TIME']?>
+          </div>
+        </div>
+        <div>
+          <div>
+            <?=htmlspecialchars($data[$key]['CMD'], ENT_QUOTES)?>
+          </div>
+        </div>
+      </div>
+<?php } ?>
+</div>
+</div>
+</div>

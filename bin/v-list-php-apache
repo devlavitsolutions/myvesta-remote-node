@@ -1,0 +1,91 @@
+#!/bin/bash
+# info: list of installed php versions that have Apache template.
+# options: [FORMAT]
+#
+# The function obtains the list of installed PHP versions that have Apache template.
+
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+# Argument definition
+format=${1-shell}
+
+# Includes
+source $VESTA/func/main.sh
+
+# JSON list function
+json_list() {
+    counter=$(echo "$phpversions" | wc -l)
+    i=1
+    echo '['
+    for phpversion in $phpversions; do
+        if [ "$i" -lt "$counter" ]; then
+            echo -e  "\t\"$phpversion\","
+        else
+            echo -e  "\t\"$phpversion\""
+        fi
+        (( ++i))
+    done
+    echo "]"
+}
+
+# shell list function
+shell_list() {
+    for phpversion in $phpversions; do
+        echo "$phpversion"
+    done
+}
+
+# PLAIN list function
+plain_list() {
+    for phpversion in $phpversions; do
+        echo "$phpversion"
+    done
+}
+
+# CSV list function
+csv_list() {
+    for phpversion in $phpversions; do
+        echo "$phpversion"
+    done
+}
+
+echo_phpversions_list() {
+    for element in "${phpversions_list[@]}"; do
+        echo "$element"
+    done
+}
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+# Obtaining the list of installed PHP-FPM versions
+fpmphpversions=$(/usr/local/vesta/bin/v-list-php)
+
+for phpversion in $fpmphpversions; do
+    phpversiontpl=${phpversion//./}
+    tpl="/usr/local/vesta/data/templates/web/apache2/PHP-FPM-$phpversiontpl.tpl"
+    if [ -f "$tpl" ]; then
+        phpversions_list+=("$phpversion")
+    fi
+done
+
+phpversions=$(echo_phpversions_list)
+
+# Listing data
+case $format in
+    json)   json_list ;;
+    plain)  plain_list ;;
+    csv)    csv_list ;;
+    shell)  shell_list ;;
+esac
+
+
+#----------------------------------------------------------#
+#                       Vesta                              #
+#----------------------------------------------------------#
+
+exit

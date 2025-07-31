@@ -1,0 +1,469 @@
+#!/bin/bash
+
+build_date=$(curl -s http://c.myvestacp.com/build_date.txt)
+echo "$build_date" > /usr/local/vesta/build_date.txt
+
+release=$(cat /etc/debian_version | tr "." "\n" | head -n1)
+
+# Run triggers only on updates
+if [ ! -e "/usr/local/vesta/data/users/admin" ]; then
+    version=$(curl -s http://c.myvestacp.com/latest.txt?installed)
+    version=${version:6}
+    echo "=== myVesta $version installed ==="
+    echo "=== myVesta build date: $build_date"
+    echo "$version" > /usr/local/vesta/version.txt
+    exit
+fi
+
+/usr/local/vesta/bin/v-ensure-poold-folders-not-empty
+
+if [ ! -d "/usr/local/vesta/data/upgrades" ]; then
+    mkdir -p /usr/local/vesta/data/upgrades
+fi
+
+# show changelog after update
+echo "1" > /usr/local/vesta/data/upgrades/show_changelog
+chmod a=rw /usr/local/vesta/data/upgrades/show_changelog
+
+if ! grep -q "FILEMANAGER_KEY='FREEFM'" /usr/local/vesta/conf/vesta.conf; then
+    echo "== Adding FileManager license to vesta.conf"
+    echo "FILEMANAGER_KEY='FREEFM'" >> /usr/local/vesta/conf/vesta.conf
+fi
+
+if [ -f "/root/.bash_profile" ]; then
+    if ! grep -q "v-cd-www" /root/.bash_profile; then
+        echo "== Adding v-cd-www alias to root bash profile"
+        echo "alias v-cd-www='source /usr/local/vesta/bin/v-change-dir-www'" >> /root/.bash_profile
+    fi
+fi
+
+# Adding myVesta rules to SpamAssassin
+if [ -d "/etc/spamassassin" ]; then
+    spamassassin_modified=0
+    if [ ! -f "/etc/spamassassin/myvesta.cf" ]; then
+        touch /etc/spamassassin/myvesta.cf
+    fi
+    if ! grep -q 'RCVD_IN_RP_SAFE' /etc/spamassassin/myvesta.cf; then
+        echo "== Adding RCVD_IN_RP_ myVesta rules to SpamAssassin"
+        echo 'score RCVD_IN_RP_SAFE 0' >> /etc/spamassassin/myvesta.cf
+        echo 'score RCVD_IN_RP_CERTIFIED 0' >> /etc/spamassassin/myvesta.cf
+        spamassassin_modified=1
+    fi
+    if ! grep -q 'SPF_FAIL' /etc/spamassassin/myvesta.cf; then
+        echo "== Adding SPF_FAIL myVesta rules to SpamAssassin"
+    cat <<EOF >> /etc/spamassassin/myvesta.cf
+score SPF_FAIL 3.0
+score SPF_SOFTFAIL 4.0
+score SPF_NONE 4.0
+EOF
+        spamassassin_modified=1
+    fi
+
+    if [ $spamassassin_modified -eq 1 ]; then
+        spamassassin_running=$(/usr/local/vesta/bin/v-list-sys-services | grep 'spamassassin\|spamd' | grep -c 'running')
+        if [ $spamassassin_running -eq 1 ]; then
+            echo "== Restarting SpamAssassin"
+            if [ "$release" -lt 12 ]; then
+                    systemctl restart spamassassin.service
+                else
+                    systemctl restart spamd.service
+            fi
+        fi
+    fi
+fi
+
+# Adding ProFTPD to Fail2Ban
+if [ -f "/etc/fail2ban/jail.local" ] && [ -f "/etc/proftpd/proftpd.conf" ]; then
+    if ! grep -q 'proftpd' /etc/fail2ban/jail.local; then
+        echo "== Adding ProFTPD to Fail2Ban"
+        cat <<EOF >> /etc/fail2ban/jail.local
+
+[proftpd]
+enabled = true
+filter = proftpd
+action = vesta[name=FTP]
+port = ftp,ftp-data,ftps,ftps-data
+logpath = %(proftpd_log)s
+backend = %(proftpd_backend)s
+maxretry = 5
+EOF
+        fail2ban_running=$(/usr/local/vesta/bin/v-list-sys-services | grep 'fail2ban' | grep -c 'running')    
+        if [ $fail2ban_running -eq 1 ]; then
+            echo "== Restarting Fail2Ban"
+            systemctl restart fail2ban
+        fi
+    fi
+fi
+
+# Removing SpamHaus DNSBL
+if [ ! -f "/usr/local/vesta/data/upgrades/spamhaus_dnsbl_removed" ]; then
+    sed -i '/zen.spamhaus.org/d' /etc/exim4/dnsbl.conf
+    touch /usr/local/vesta/data/upgrades/spamhaus_dnsbl_removed
+fi
+
+# Fixing 'dh key too small' in dovecot
+if [ -f "/var/log/dovecot.log.1" ] && [ -f "/etc/dovecot/conf.d/10-ssl.conf" ] && [ -f "/usr/share/dovecot/dh.pem" ]; then
+    if grep -q 'dh key too small' /var/log/dovecot.log.1; then
+        if ! grep -q 'dh.pem' /etc/dovecot/conf.d/10-ssl.conf; then
+            echo "== Fixing 'dh key too small' in dovecot"
+            echo "ssl_dh=</usr/share/dovecot/dh.pem" >> /etc/dovecot/conf.d/10-ssl.conf
+            systemctl restart dovecot
+        fi
+    fi
+fi
+
+# Patching exim4.conf for: smtputf8_advertise_hosts
+if [ "$release" -ge 11 ]; then
+    if [ -f "/etc/exim4/exim4.conf.template" ]; then
+        if ! grep -q 'smtputf8_advertise_hosts' /etc/exim4/exim4.conf.template; then
+            echo 'Patching exim4.conf for: smtputf8_advertise_hosts'
+            sed -i  "/^domainlist local_domains/i smtputf8_advertise_hosts =" /etc/exim4/exim4.conf.template
+            systemctl restart exim4
+        fi
+    fi
+fi
+
+# Patching exim4.conf for: Helo name contains a ip address
+if [ -f "/etc/exim4/exim4.conf.template" ]; then
+    if grep -q 'drop    message       = Helo name contains a ip address (HELO was $sender_helo_name) and not is valid' /etc/exim4/exim4.conf.template; then
+        echo 'Patching exim4.conf for: Helo name contains a ip address'
+        patch /etc/exim4/exim4.conf.template < /usr/local/vesta/src/deb/for-download/tools/patches/exim_helo_authenticated.patch
+        sed -i '/telenor\.rs/d' /etc/exim4/exim4.conf.template
+        systemctl restart exim4
+    fi
+fi
+
+# Making sure yescrypt is disabled
+if [ "$release" -ge 11 ]; then
+    sed -i "s/yescrypt/sha512/g" /etc/pam.d/common-password
+fi
+
+# Creating /etc/nginx/.htpasswd if it does not exist
+if [ ! -f "/etc/nginx/.htpasswd" ]; then
+    echo 'private:$apr1$0MYnchM5$yVi/OTfp7o3lGNst/a8.90' > /etc/nginx/.htpasswd
+fi
+
+# Fixing Gmail hosts_try_fastopen in Exim4
+if [ "$release" -eq 11 ]; then
+	if [ -f "/etc/exim4/exim4.conf.template" ]; then 
+		check_grep=$(grep -c 'hosts_try_fastopen' /etc/exim4/exim4.conf.template)
+		if [ "$check_grep" -eq 0 ]; then
+					echo "=== Fixing Gmail hosts_try_fastopen in Exim4"
+					FIND="dkim_strict = 0"
+					ADD="  hosts_try_fastopen = \!\*.l.google.com"
+					sed -i "s#$FIND#$FIND\n$ADD#g" /etc/exim4/exim4.conf.template
+					systemctl restart exim4
+		fi
+	fi
+fi
+
+if [ "$release" -ge 11 ]; then
+    check_grep=$(grep -c '^net\.ipv4\.tcp_window_scaling' /etc/sysctl.conf)
+    if [ "$check_grep" -gt 0 ]; then
+        echo "=== Removing net.ipv4.tcp_window_scaling"
+        sed -i "s/net\.ipv4\.tcp_window_scaling/#net.ipv4.tcp_window_scaling/g" /etc/sysctl.conf
+        echo 1 > /proc/sys/net/ipv4/tcp_window_scaling
+    fi
+fi
+
+# Adding Barracuda RBL to SpamAssassin
+if [ ! -f "/usr/local/vesta/data/upgrades/barracuda_rbl" ]; then
+    spamassassin_installed=$(/usr/local/vesta/bin/v-list-sys-services | grep -c 'spamassassin')
+    spamassassin_running=$(/usr/local/vesta/bin/v-list-sys-services | grep 'spamassassin\|spamd' | grep -c 'running')
+    if [ $spamassassin_installed -eq 1 ]; then
+        echo "== Adding Barracuda RBL to SpamAssassin"
+        wget -nv -O /etc/spamassassin/barracuda.cf http://c.myvestacp.com/tools/spamassassin/barracuda.cf
+    fi
+    if [ $spamassassin_running -eq 1 ]; then
+        echo "== Restarting SpamAssassin"
+        if [ "$release" -lt 12 ]; then
+            systemctl restart spamassassin.service
+        else
+            systemctl restart spamd.service
+        fi
+    fi
+    touch /usr/local/vesta/data/upgrades/barracuda_rbl
+fi
+
+# Checking if FreshClam is started after installation
+if [ ! -f "/usr/local/vesta/data/upgrades/freshclam_start" ]; then
+    clamavup=$(/usr/local/vesta/bin/v-list-sys-services | grep 'clamav-daemon' | grep -c 'running')
+    freshclamdown=$(/usr/local/vesta/bin/v-list-sys-services | grep 'clamav-freshclam' | grep -c 'off')
+    if [ $clamavup -eq 1 ] && [ $freshclamdown -eq 1 ]; then
+        echo "== Starting FreshClam"
+        systemctl enable clamav-freshclam.service
+        systemctl start clamav-freshclam.service
+    fi
+    touch /usr/local/vesta/data/upgrades/freshclam_start
+fi
+
+# Fix Autoreply issue with Exim 4.94+
+if [ ! -f "/usr/local/vesta/data/upgrades/fix_exim_494_autoreply" ]; then
+    if [ "$release" -eq 11 ]; then
+        touch /usr/local/vesta/data/upgrades/fix_exim_494_autoreply
+        if [ -f "/etc/exim4/exim4.conf.template" ]; then 
+            echo "== Fix Autoreply issue with Exim 4.94+"
+            sed -i 's|file = /etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/autoreply.${lookup{$local_part}dsearch{${extract{5}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/passwd}}}}/mail/${lookup{$domain}dsearch{/etc/exim4/domains/}}}}.msg|file = /etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/autoreply.${extract{1}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/accounts}}}}.msg|g'  /etc/exim4/exim4.conf.template
+            sed -i 's| from = "${lookup{$local_part}dsearch{${extract{5}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/passwd}}}}/mail/${lookup{$domain}dsearch{/etc/exim4/domains/}}}}@${lookup{$domain}dsearch{/etc/exim4/domains/}}"| from = "${extract{1}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/accounts}}}}@${lookup{$domain}dsearch{/etc/exim4/domains/}}"|g' /etc/exim4/exim4.conf.template
+            for user in $(grep '@' /etc/passwd |cut -f1 -d:); do
+                if [ ! -f "/usr/local/vesta/data/users/$user/user.conf" ]; then
+                    continue;
+                fi
+                /usr/local/vesta/bin/v-rebuild-mail-domains $user
+            done
+            systemctl restart exim4
+        fi
+    fi
+fi
+
+# Enabling session.cookie_httponly and session.cookie_secure in myvesta php-fpm
+if [ ! -f "/usr/local/vesta/data/upgrades/enable_cookie_httponly" ]; then
+    touch /usr/local/vesta/data/upgrades/enable_cookie_httponly
+    check_grep=$(grep -c 'cookie_httponly' /usr/local/vesta/php/etc/php-fpm.conf)
+    if [ "$check_grep" -eq 0 ]; then
+        echo "== Enabling session.cookie_httponly and session.cookie_secure in myvesta php-fpm"
+        echo "php_admin_flag[session.cookie_httponly] = on" >> /usr/local/vesta/php/etc/php-fpm.conf
+        echo "php_admin_flag[session.cookie_secure] = on" >> /usr/local/vesta/php/etc/php-fpm.conf
+        systemctl restart vesta
+    fi
+fi
+
+# Enabling TLS for ProFTPD FTPS
+if [ ! -f "/usr/local/vesta/data/upgrades/enable-tls-in-proftpd" ]; then
+  if [ -f "/etc/proftpd/proftpd.conf" ]; then
+    touch /usr/local/vesta/data/upgrades/enable-tls-in-proftpd
+    check_grep=$(grep -c 'tls' /etc/proftpd/proftpd.conf)
+    if [ "$check_grep" -eq 0 ]; then
+        echo "== Enabling TLS for ProFTPD FTPS"
+        wget -nv https://c.myvestacp.com/debian/10/proftpd/tls.conf -O /etc/proftpd/tls.conf
+        sed -i "s|AuthPAMConfig|Include /etc/proftpd/tls.conf\n\nAuthPAMConfig|g" /etc/proftpd/proftpd.conf
+        proftpd_running=$(/usr/local/vesta/bin/v-list-sys-services | grep 'proftpd' | grep -c 'running')    
+        if [ $proftpd_running -eq 1 ]; then
+            echo "== Restarting ProFTPD"
+            systemctl restart proftpd
+        fi
+    fi
+  fi
+fi
+
+# Updating CloudFlare IP addresses
+if [ ! -f "/usr/local/vesta/data/upgrades/update-cloudflare-ips" ]; then
+  if [ -f "/etc/nginx/nginx.conf" ]; then
+    touch /usr/local/vesta/data/upgrades/update-cloudflare-ips
+    echo "== Updating CloudFlare IP addresses"
+    sed -i "s|    set_real_ip_from 104.16.0.0\/12;|    set_real_ip_from 104.16.0.0/13;\n    set_real_ip_from 104.24.0.0/14;|g" /etc/nginx/nginx.conf
+    systemctl restart nginx
+  fi
+fi
+
+# Tuning of php-fpm pool.d config files (perfomances and limits)
+if [ ! -f "/usr/local/vesta/data/upgrades/tune-fpm-config-files-v2" ]; then
+    touch /usr/local/vesta/data/upgrades/tune-fpm-config-files-v2
+    
+    echo "== Tuning of php-fpm pool.d config files (perfomances and limits)"
+    
+    mkdir -p /root/etc-php-backup2
+    cp -r /etc/php/ /root/etc-php-backup2/
+
+    OLDVAL='pm.max_children = 16'
+    NEWVAL='pm.max_children = 8'
+    find /etc/php/*/fpm/pool.d/ -name "*.conf" -type f -exec grep -l "$OLDVAL" {} \; | xargs sed -i "s|$OLDVAL|$NEWVAL|g"
+    find /usr/local/vesta/data/templates/web/apache2/ -type f -name "*.sh" -exec grep -l "$OLDVAL" {} \; | xargs sed -i "s|$OLDVAL|$NEWVAL|g"
+    
+    OLDVAL='request_terminate_timeout = 30s'
+    NEWVAL='request_terminate_timeout = 90s'
+    find /etc/php/*/fpm/pool.d/ -name "*.conf" -type f -exec grep -l "$OLDVAL" {} \; | xargs sed -i "s|$OLDVAL|$NEWVAL|g"
+    find /usr/local/vesta/data/templates/web/apache2/ -type f -name "*.sh" -exec grep -l "$OLDVAL" {} \; | xargs sed -i "s|$OLDVAL|$NEWVAL|g"
+    
+    OLDVAL='php_admin_value\[max_execution_time\] = 20'
+    NEWVAL='php_admin_value\[max_execution_time\] = 30'
+    find /etc/php/*/fpm/pool.d/ -name "*.conf" -type f -exec grep -l "$OLDVAL" {} \; | xargs sed -i "s|$OLDVAL|$NEWVAL|g"
+    find /usr/local/vesta/data/templates/web/apache2/ -type f -name "*.sh" -exec grep -l "$OLDVAL" {} \; | xargs sed -i "s|$OLDVAL|$NEWVAL|g"
+    
+    # restart all php-fpm services
+    systemctl --full --type service --all | grep "php...-fpm" | awk '{print $1}' | xargs systemctl restart
+    echo "== Done"
+fi
+
+if [ ! -f "/usr/local/vesta/data/upgrades/allow-backup-anytime" ]; then
+    touch /usr/local/vesta/data/upgrades/allow-backup-anytime
+    check_grep=$(grep -c 'ALLOW_BACKUP_ANYTIME' /usr/local/vesta/conf/vesta.conf)
+    if [ "$check_grep" -eq 0 ]; then
+        echo "" >> /usr/local/vesta/conf/vesta.conf
+        echo "ALLOW_BACKUP_ANYTIME='yes'" >> /usr/local/vesta/conf/vesta.conf
+    fi
+fi
+
+if [ ! -f "/usr/local/vesta/data/upgrades/fix-sudoers" ]; then
+    touch /usr/local/vesta/data/upgrades/fix-sudoers
+    # sudoers fix
+    if [ -e "/etc/sudoers.d/admin" ]; then
+        sed -i "s/admin.*ALL=(ALL).*/# sudo is limited to vesta scripts/" \
+            /etc/sudoers.d/admin
+    fi
+fi
+
+check_grep=$(grep -c 'vesta.hostingpanel.dev' /etc/apt/sources.list.d/vesta.list)
+if [ "$check_grep" -eq 1 ]; then
+    wget -O - http://apt.myvestacp.com/deb_signing.key | sudo apt-key add -
+    codename="$(cat /etc/os-release |grep VERSION= |cut -f 2 -d \(|cut -f 1 -d \))"
+    echo "deb http://apt.myvestacp.com/$codename/ $codename vesta" > /etc/apt/sources.list.d/vesta.list
+fi
+
+if [ -f "/var/spool/cron/crontabs/root" ]; then
+    check_cron=$(grep -c '6 sudo find /home/' /var/spool/cron/crontabs/root)
+else
+    check_cron=0
+fi
+if [ "$check_cron" -eq 0 ]; then
+    crontab -l | { cat; echo "10 2 * * 6 sudo find /home/*/tmp/ -type f -mtime +5 -exec rm {} \;"; } | crontab -
+fi
+
+if [ $(systemctl list-unit-files | grep clamav-daemon | grep -c "disabled") -eq 0 ]; then
+    # Fixes only if ClamAV is enabled
+
+    # make sure clamav-daemon.service has mkdir fix
+    if [ -f "/lib/systemd/system/clamav-daemon.service" ]; then
+        check_grep=$(grep -c 'mkdir' /lib/systemd/system/clamav-daemon.service)
+        if [ "$check_grep" -eq 0 ]; then
+            echo "=== patching clamav-daemon.service"
+            exec_pre1='ExecStartPre=-/bin/mkdir -p /var/run/clamav'
+            exec_pre2='ExecStartPre=-/bin/chown -R clamav:clamav /var/run/clamav'
+            sed -i "s|\[Service\]|[Service]\n$exec_pre1\n$exec_pre2|g" /lib/systemd/system/clamav-daemon.service
+            systemctl daemon-reload
+            systemctl restart clamav-daemon
+            systemctl restart clamav-freshclam
+        fi
+    fi
+
+    # reverting to default clamd sock
+    if [ ! -f "/usr/local/vesta/data/upgrades/change-clamav-socket-v3" ]; then
+        touch /usr/local/vesta/data/upgrades/change-clamav-socket-v3
+        if [ -f "/etc/clamav/clamd.conf" ]; then
+            sed -i "s#/var/lib/clamav/clamd.sock#/var/run/clamav/clamd.ctl#g" /etc/clamav/clamd.conf
+            if [ -f "/etc/exim4/exim4.conf.template" ]; then
+                sed -i "s#/var/lib/clamav/clamd.sock#/var/run/clamav/clamd.ctl#g" /etc/exim4/exim4.conf.template
+            fi
+            if [ -f "/lib/systemd/system/clamav-daemon.socket" ]; then
+                sed -i "s#/var/lib/clamav/clamd.sock#/run/clamav/clamd.ctl#g" /lib/systemd/system/clamav-daemon.socket
+            fi
+            systemctl daemon-reload
+            systemctl restart clamav-daemon
+            systemctl restart clamav-freshclam
+            if [ -f "/etc/exim4/exim4.conf.template" ]; then
+                systemctl restart exim4
+            fi
+        fi
+    fi
+
+    # reverting to default clamd sock
+    if [ ! -f "/usr/local/vesta/data/upgrades/change-clamav-socket-v4" ]; then
+        touch /usr/local/vesta/data/upgrades/change-clamav-socket-v4
+        if [ -f "/etc/clamav/clamd.conf" ]; then
+            check_grep=$(grep -c '/var/lib/clamav/clamd.ctl' /etc/clamav/clamd.conf)
+            if [ "$check_grep" -eq 1 ]; then
+                sed -i "s#/var/lib/clamav/clamd.ctl#/var/run/clamav/clamd.ctl#g" /etc/clamav/clamd.conf
+                systemctl restart clamav-daemon
+            fi
+        fi
+    fi
+
+    # Block executable files inside zip/rar/tar archives in ClamAV
+    if [ ! -f "/usr/local/vesta/data/upgrades/clamav_block_exe_in_archives" ]; then
+        touch /usr/local/vesta/data/upgrades/clamav_block_exe_in_archives
+        if [ -f "/etc/exim4/exim4.conf.template" ]; then
+            check_grep=$(grep -c '#CLAMD' /etc/exim4/exim4.conf.template)
+            if [ "$check_grep" -eq 0 ]; then
+                folder="/var/lib/clamav"
+                if [ -d "$folder" ]; then
+                    echo "=== Blocking executable files inside zip/rar/tar archives in ClamAV"
+                    wget -nv -O $folder/foxhole_all.cdb http://c.myvestacp.com/tools/clamav/foxhole_all.cdb
+                    chown clamav:clamav $folder/foxhole_all.cdb
+                    service clamav-daemon restart
+                fi
+            fi
+        fi
+    fi
+fi
+
+# Making sure mpm_event will stay
+if [ ! -f "/usr/local/vesta/data/upgrades/keeping-mpm-event-3" ]; then
+    touch /usr/local/vesta/data/upgrades/keeping-mpm-event-3
+    echo "=== scheduling keeping-mpm-event check script"
+    echo "bash /usr/local/vesta/upd/keep_mpm_event.sh 'background' >> /usr/local/vesta/data/upgrades/keeping-mpm-event.log 2>&1" >> /usr/local/vesta/data/queue/restart.pipe
+    /usr/local/vesta/bin/v-add-cron-restart-job > /dev/null 2>&1
+fi
+
+# Fixing ssl directive in nginx templates
+if [ "$release" -eq 9 ] || [ "$release" -eq 10 ]; then
+    if [ ! -f "/usr/local/vesta/data/upgrades/fix_ssl_directive_in_templates" ]; then
+        touch /usr/local/vesta/data/upgrades/fix_ssl_directive_in_templates
+        echo "=== Fixing ssl directive in nginx templates"
+        bash /usr/local/vesta/upd/fix_ssl_directive_in_templates.sh
+    fi
+fi
+
+# Clearing letsencrypt pipe
+if [ ! -f "/usr/local/vesta/data/upgrades/clearing-letsencrypt-pipe" ]; then
+    touch /usr/local/vesta/data/upgrades/clearing-letsencrypt-pipe
+    if [ -f "/usr/local/vesta/data/queue/letsencrypt.pipe" ]; then
+        truncate -s 0 /usr/local/vesta/data/queue/letsencrypt.pipe
+    fi
+fi
+
+# Deleting accidentally created W3TC.json in root folder of project
+if [ -f "/usr/local/vesta/W3TC.json" ]; then
+    rm /usr/local/vesta/W3TC.json
+fi
+# Deleting renamed command
+if [ -f "/usr/local/vesta/bin/v-replace-in-file" ]; then
+    rm /usr/local/vesta/bin/v-replace-in-file
+fi
+
+# Limit max recipients per email to 15, in order to prevent mass spamming
+if [ ! -f "/usr/local/vesta/data/upgrades/limit_max_recipients" ]; then
+    touch /usr/local/vesta/data/upgrades/limit_max_recipients
+    if [ -f "/etc/exim4/exim4.conf.template" ]; then
+        check_grep=$(grep -c 'recipients_max' /etc/exim4/exim4.conf.template)
+        if [ "$check_grep" -eq 0 ]; then
+            echo "=== Limit max recipients per email to 15, in order to prevent mass spamming"
+            FIND="acl_smtp_mime = acl_check_mime"
+            REPLACE="recipients_max = 15\nrecipients_max_reject = true"
+            sed -i "s#$FIND#$FIND\n\n$REPLACE#g" /etc/exim4/exim4.conf.template
+            systemctl restart exim4
+        fi
+    fi
+fi
+
+# Fixing Roundcube to send via authenticated SMTP user instead via php
+if [ ! -f "/usr/local/vesta/data/upgrades/roundcube_smtp_auth" ]; then
+    touch /usr/local/vesta/data/upgrades/roundcube_smtp_auth
+    if [ -f "/etc/roundcube/defaults.inc.php" ]; then
+        echo "=== Fixing Roundcube to send via authenticated SMTP user instead via php"
+        sed -i "s#^\$config\['smtp_user'\].*#\$config\['smtp_user'\] = '%u';#g" /etc/roundcube/defaults.inc.php
+        sed -i "s#^\$config\['smtp_pass'\].*#\$config\['smtp_pass'\] = '%p';#g" /etc/roundcube/defaults.inc.php
+    fi
+fi
+
+# Fixing Apache status public access
+if [ ! -f "/usr/local/vesta/data/upgrades/apache_status_public_access" ]; then
+    touch /usr/local/vesta/data/upgrades/apache_status_public_access
+    if [ -f "/etc/apache2/mods-available/status.conf" ]; then
+        echo "=== Fixing Apache status public access"
+        sed -i "s|Allow from all|# Allow from all|g" /etc/apache2/mods-available/status.conf
+        service apache2 restart
+    fi
+fi
+
+# Run custom triggers
+if [ -x "/root/vesta-patch.sh" ]; then
+    /root/vesta-patch.sh
+fi
+
+version=$(curl -s http://c.myvestacp.com/latest.txt?updated)
+version=${version:6}
+echo "=== myVesta $version updated ==="
+echo "=== myVesta build date: $build_date"
+echo "$version" > /usr/local/vesta/version.txt
+
+exit 0

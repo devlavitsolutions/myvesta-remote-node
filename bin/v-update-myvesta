@@ -1,0 +1,36 @@
+#!/bin/bash
+# info: Get the very latest build of myVesta
+# options: NONE
+#
+# The function is downloading the very latest build of myVesta
+
+#----------------------------------------------------------#
+#           Verifications & Variable & Function            #
+#----------------------------------------------------------#
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ]; then
+    echo "You must be root to execute this script"
+    exit 1
+fi
+
+# Includes
+source /usr/local/vesta/func/main.sh
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+rm /var/cache/apt/archives/vesta_* > /dev/null 2>&1
+apt-get update -o Dir::Etc::sourcelist="sources.list.d/vesta.list" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"  > /usr/local/vesta/log/update-$package.log 2>&1
+apt-get install --reinstall vesta
+
+#----------------------------------------------------------#
+#                       Vesta                              #
+#----------------------------------------------------------#
+
+echo "=== myVesta updated ==="
+
+log_event "$OK" "$ARGUMENTS"
+
+exit

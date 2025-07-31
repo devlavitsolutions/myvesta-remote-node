@@ -1,0 +1,81 @@
+#!/bin/bash
+# info: disinfect a WordPress site with several maintenance commands
+# options: DOMAIN
+
+# -------------------------------------------------------- #
+#                    variables and checks                  #
+# -------------------------------------------------------- #
+
+if [ "$(whoami)" != "root" ]; then
+    echo "You must be root to run this command."
+    exit 1
+fi
+
+# make sure all Vesta helper scripts are reachable
+export PATH="/usr/local/vesta/bin:$PATH"
+source /etc/profile
+
+domain="$1"
+if [ -z "$domain" ]; then
+    echo "Usage: v-desinfect-wp DOMAIN"
+    exit 1
+fi
+
+user=$(/usr/local/vesta/bin/v-search-domain-owner "$domain")
+if [ -z "$user" ]; then
+    echo "Domain $domain does not exist."
+    exit 1
+fi
+
+# absolute paths to maintenance scripts, in desired order
+declare -a tasks=(
+    "/usr/local/vesta/bin/v-change-database-password-for-wordpress"
+    "/usr/local/vesta/bin/v-change-wordpress-admin-passwords"
+    "/usr/local/vesta/bin/v-fix-wordpress-core"
+    "/usr/local/vesta/bin/v-delete-inactive-wordpress-plugins-and-themes"
+    "/usr/local/vesta/bin/v-delete-wordpress-uploads-php-files"
+    "/usr/local/vesta/bin/v-wf-malware-hyperscan-with-remediate"
+    "INTERACTIVE=1 /usr/local/vesta/bin/v-wf-malware-hyperscan-with-remediate"
+)
+
+# -------------------------------------------------------- #
+#                    execution strategy                    #
+# -------------------------------------------------------- #
+
+echo
+read -r -p "Run all maintenance steps automatically? (y/n) " run_all < /dev/tty
+
+if [[ "$run_all" =~ ^[Yy]$ ]]; then
+    echo "Running all maintenance steps for $domain"
+    automatic=true
+else
+    echo
+    echo "Selective mode. You will be asked for each step."
+    automatic=false
+fi
+
+for cmd in "${tasks[@]}"; do
+    if [ ! -x "$cmd" ]; then
+        echo "Command $cmd not found or not executable, skipping."
+        continue
+    fi
+
+    if [ "$automatic" = false ]; then
+        while true; do
+            read -r -p "Run $(basename "$cmd") for $domain? (y/n) " yn < /dev/tty
+            case "$yn" in
+                [Yy]* ) break ;;
+                [Nn]* ) echo "Skipping $(basename "$cmd")."; continue 2 ;;
+                * )     echo "Please answer y or n." ;;
+            esac
+        done
+    fi
+
+    echo
+    echo "=== $(basename "$cmd") $domain ==="
+    "$cmd" "$domain"
+done
+
+echo
+echo "Done."
+exit 0

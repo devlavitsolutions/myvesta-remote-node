@@ -1,0 +1,144 @@
+#!/bin/bash
+# info: Install rocket-nginx extension for certain domain
+# options: DOMAIN 
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ]; then
+    echo "You must be root to execute this script"
+    exit 1
+fi
+
+# Importing system environment
+source /etc/profile
+
+# Argument definition
+domain=$1
+
+user=$(/usr/local/vesta/bin/v-search-domain-owner $domain)
+USER=$user
+
+# Includes
+source /usr/local/vesta/func/main.sh
+source /usr/local/vesta/func/domain.sh
+
+if [ -z "$user" ]; then
+    check_result $E_NOTEXIST "domain $domain doesn't exist"
+fi
+
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+check_args '1' "$#" 'DOMAIN'
+is_format_valid 'domain'
+is_object_valid 'user' 'USER' "$user"
+is_object_unsuspended 'user' 'USER' "$user"
+
+if [ ! -d "/home/$user" ]; then
+    echo "User doesn't exist";
+    exit 1;
+fi
+
+if [ ! -d "/home/$user/web/$domain/public_html" ]; then
+    echo "Domain doesn't exist";
+    exit 1;
+fi
+
+if [ ! -f "/home/$user/web/$domain/public_html/wp-config.php" ]; then
+    echo 'Please install WordPress first.'
+    exit 1;
+fi
+
+if [ ! -d "/etc/nginx/rocket-nginx" ]; then
+    echo "rocket-nginx is not installed";
+    echo "Do you want to install it now (y/n)?"
+    read answer
+    if [ "$answer" == "y" ]; then
+        echo "Installing rocket-nginx..."
+        curl -sL https://c.myvestacp.com/tools/install-rocket-nginx.sh | bash -
+    else
+        echo "Exiting script"
+        exit 1;
+    fi
+fi
+
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+# Changing Proxy Template
+# Check if the proxy template is already set correctly
+current_template=$(/usr/local/vesta/bin/v-list-web-domain $user $domain | grep 'PROXY:' | awk '{print $2}')
+if [ "$current_template" == "wprocket-force-https" ] || [ "$current_template" == "wprocket-hosting" ] || [ "$current_template" == "wprocket-webp-express-force-https" ]; then
+    echo "Proxy Template is already set up correctly"
+else
+    # Prompt the user to choose whether to force HTTPS or not
+    echo "Do you want to use wprocket-hosting template, wprocket-force-https template or wprocket-webp-express-force-https template (h/f/w):"
+    read answer
+
+    # Change the proxy template based on the user's choice
+    if [ "$answer" == "h" ]; then
+        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "wprocket-hosting"
+    elif [ "$answer" == "f" ]; then
+        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "wprocket-force-https"
+    elif [ "$answer" == "w" ]; then
+        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "wprocket-webp-express-force-https"
+    fi
+
+    echo "Proxy Template is ready"
+fi
+
+# Disabling wp-cron in wp-config.php
+cd /home/$user/web/$domain/public_html
+checkstring_disable="define('DISABLE_WP_CRON', true)"
+checkstring_enable="define('DISABLE_WP_CRON', false)"
+string_disable="define( 'DISABLE_WP_CRON', true );"
+line="<?php"
+file="wp-config.php"
+
+if grep -q -w -i -F "$checkstring_disable" "$file"; then
+  echo "WP-Cron is already disabled in your wp-config.php"
+elif grep -q -w -i -F "$checkstring_enable" "$file"; then
+  echo "Disabling WP-Cron in your wp-config.php..."
+  sed -i "/$checkstring_enable/d" "$file"
+  sed -i "/$line/Ia $string_disable" "$file"
+else
+  echo "Disabling WP-Cron in your wp-config.php..."
+  sed -i "/$line/Ia $string_disable" "$file"
+fi
+
+
+# Adding cron job
+# Check if a cron job already exists for any of the specified PHP-FPM versions
+existing_cron=$(crontab -l -u $user | grep -o "wp-cron.php >/home/$user/web/$domain/cron.log" | grep -v "grep")
+
+if [ ! -z "$existing_cron" ]; then
+    echo "There is already a cron job added for user $user and domain $domain."
+else
+    echo "Adding cron job..."
+    # Add the cron job
+    fpm_ver=$(/usr/local/vesta/bin/v-get-php-version-of-domain "$domain")
+    touch /home/$user/web/$domain/cron.log
+    chown $user:$user /home/$user/web/$domain/cron.log
+
+    case $fpm_ver in
+        5.6 | 7.0 | 7.1 | 7.2 | 7.3 | 7.4 | 8.0 | 8.1 | 8.2 | 8.3) 
+            /usr/local/vesta/bin/v-add-cron-job "$user" "*/15" "*" "*" "*" "*" "cd /home/$user/web/$domain/public_html; /usr/bin/php$fpm_ver wp-cron.php >/home/$user/web/$domain/cron.log 2>&1"
+            ;;
+    esac
+fi
+
+#----------------------------------------------------------#
+#                       Vesta                              #
+#----------------------------------------------------------#
+echo "Installation is completed."
+echo "Checking RESPONSE HEADERS (You should see x-rocket-nginx-serving-static if the WP Rocket plugin is activated):"
+curl -I https://$domain
+
+exit

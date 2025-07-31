@@ -1,0 +1,11 @@
+--- force-https.tpl.orig	2023-03-25 18:15:15.577555584 +0100
++++ force-https.tpl	2023-03-25 16:51:48.044997322 +0100
+@@ -2,7 +2,7 @@
+     listen      %ip%:%proxy_port%;
+     server_name %domain_idn% %alias_idn%;
+     location / {
+-        rewrite ^(.*) https://%domain_idn%$1 permanent;
++        rewrite ^(.*) https://$host$1 permanent;
+     }
+ include %home%/%user%/conf/web/*nginx.%domain_idn%.conf_letsencrypt;
+ }

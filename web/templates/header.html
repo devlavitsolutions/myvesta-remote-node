@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+  <title>myVesta - <?=__($TAB)?></title>
+  <link rel="stylesheet" href="/css/styles.min.css?1446554113">
+  <link type="text/css" href="/css/jquery-custom-dialogs.css" rel="stylesheet" />
+  <link href="/css/fonts/font_sans_pro.css" rel="stylesheet">
+  <link href="/css/fonts/font_lobster.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/fonts/font_awesome5.css">
+  <script>
+    //
+    //  GLOBAL SETTINGS
+    //
+    <?php
+        $CURRENT_USER_FINAL=$_SESSION['user'];
+        if (isset($_SESSION['look']) && $_SESSION['look']!='') $CURRENT_USER_FINAL=$_SESSION['look'];
+        
+        $right_sidebar_right=0;
+        $content_margin_right=240;
+        $content_margin_right=240;
+        $to_top_right=285;
+        $to_shortcuts_right=330;
+        if (isset($_COOKIE['iolog']) && $_COOKIE['iolog']=='0') {
+            $right_sidebar_right=-200;
+            $content_margin_right=40;
+            $to_top_right=85;
+            $to_shortcuts_right=130;
+        }
+        
+        $GLOBALS['CURRENT_USER_FINAL']=$CURRENT_USER_FINAL;
+        $GLOBALS['right_sidebar_right']=$right_sidebar_right;
+        $GLOBALS['to_top_right']=$to_top_right;
+        $GLOBALS['to_shortcuts_right']=$to_shortcuts_right;
+    ?>
+    var GLOBAL = {};
+    GLOBAL.FTP_USER_PREFIX  = 'admin_';
+    GLOBAL.DB_USER_PREFIX   = 'admin_';
+    GLOBAL.DB_DBNAME_PREFIX = 'admin_';
+    GLOBAL.CURRENT_USER = '<?=$_SESSION['user']?>';
+    GLOBAL.CURRENT_USER_LOOK = '<?=$_SESSION['look']?>';
+    GLOBAL.CURRENT_USER_FINAL = '<?=$GLOBALS['CURRENT_USER_FINAL']?>';
+    GLOBAL.AJAX_URL = '';
+  </script>
+  <style>
+    .l-content .l-center {margin-right: <?=$content_margin_right?>px}
+  </style>
+</head>
+<body class="body-<?=strtolower($TAB)?> lang-<?=$_SESSION['language']?>">

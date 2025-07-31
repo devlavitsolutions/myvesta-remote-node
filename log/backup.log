@@ -1,0 +1,111 @@
+mysql.column_stats                                 OK
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.global_priv                                  OK
+mysql.gtid_slave_pos                               OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.index_stats                                  OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.roles_mapping                                OK
+mysql.servers                                      OK
+mysql.table_stats                                  OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.transaction_registry                         OK
+phpmyadmin.pma__bookmark                           OK
+phpmyadmin.pma__central_columns                    OK
+phpmyadmin.pma__column_info                        OK
+phpmyadmin.pma__designer_coords                    OK
+phpmyadmin.pma__designer_settings                  OK
+phpmyadmin.pma__export_templates                   OK
+phpmyadmin.pma__favorite                           OK
+phpmyadmin.pma__history                            OK
+phpmyadmin.pma__navigationhiding                   OK
+phpmyadmin.pma__pdf_pages                          OK
+phpmyadmin.pma__recent                             OK
+phpmyadmin.pma__relation                           OK
+phpmyadmin.pma__savedsearches                      OK
+phpmyadmin.pma__table_coords                       OK
+phpmyadmin.pma__table_info                         OK
+phpmyadmin.pma__table_uiprefs                      OK
+phpmyadmin.pma__tracking                           OK
+phpmyadmin.pma__userconfig                         OK
+phpmyadmin.pma__usergroups                         OK
+phpmyadmin.pma__users                              OK
+roundcube.cache                                    OK
+roundcube.cache_index                              OK
+roundcube.cache_messages                           OK
+roundcube.cache_shared                             OK
+roundcube.cache_thread                             OK
+roundcube.collected_addresses                      OK
+roundcube.contactgroupmembers                      OK
+roundcube.contactgroups                            OK
+roundcube.contacts                                 OK
+roundcube.dictionary                               OK
+roundcube.filestore                                OK
+roundcube.identities                               OK
+roundcube.responses                                OK
+roundcube.searches                                 OK
+roundcube.session                                  OK
+roundcube.system                                   OK
+roundcube.users                                    OK
+sys.sys_config                                     OK
+================================
+admin
+--------------------------------
+
+-- SYSTEM --
+2025-07-26 01:10:03 admin.conf
+2025-07-26 01:10:03 stats.log
+2025-07-26 01:10:03 history.log
+2025-07-26 01:10:03 pam
+
+
+-- WEB --
+2025-07-26 01:10:03 hostcontrolhq-node2.example.com
+2025-07-26 01:10:03 *** 1 domain ***
+
+-- DNS --
+2025-07-26 01:10:03 hostcontrolhq-node2.example.com
+2025-07-26 01:10:03 *** 1 domain ***
+
+-- MAIL --
+2025-07-26 01:10:04 hostcontrolhq-node2.example.com
+2025-07-26 01:10:04 *** 1 domain ***
+
+-- DB --
+2025-07-26 01:10:04 *** 0 databases ***
+
+-- CRON --
+2025-07-26 01:10:04 *** 8 jobs ***
+
+-- User Dir --
+2025-07-26 01:10:04 adding .bash_logout
+2025-07-26 01:10:04 adding .bashrc
+2025-07-26 01:10:04 adding .cloud-locale-test.skip
+2025-07-26 01:10:04 adding .profile
+2025-07-26 01:10:04 adding .sudo_as_admin_successful
+2025-07-26 01:10:04 *** 5 directories ***
+
+-- SUMMARY --
+2025-07-26 01:10:04 Local: /backup/admin.2025-07-26_01-10-04.tar
+2025-07-26 01:10:04 Size: 1 MB
+2025-07-26 01:10:04 Runtime: 1 minute
+
+--------------------------------
+
+

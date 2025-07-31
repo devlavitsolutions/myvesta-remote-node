@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Check if the first argument is provided
+if [ -z "$1" ] || [ -z "$2" ]; then
+    echo "Two arguments are required. Exiting."
+    exit 1
+fi
+
+# Capture the action passed as the argument
+ACTION=$1
+ROOT_DIR=$2
+
+# Map actions to script names
+case $ACTION in
+    "install")
+        SCRIPT_NAME="v-install-litespeed"
+        ;;
+    "restart")
+        SCRIPT_NAME="v-restart-litespeed"
+        ;;
+    "reattach")
+        SCRIPT_NAME="v-restart-lcphp"
+        ;;
+    "apache")
+        SCRIPT_NAME="v-switch-to-apache"
+        ;;
+    "litespeed")
+        SCRIPT_NAME="v-switch-to-litespeed"
+        ;;
+    *)
+        echo "Unknown action: $ACTION."
+        exit 1
+        ;;
+esac
+
+# Run the script in background and capture PID
+timeout 1500 "$ROOT_DIR/bin/$SCRIPT_NAME"

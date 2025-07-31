@@ -1,0 +1,70 @@
+#!/bin/bash
+# info: Edit php.ini for a specific PHP version
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+# Includes
+source $VESTA/func/main.sh
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+# List available PHP versions and store them into an array
+mapfile -t php_versions < <(/usr/local/vesta/bin/v-list-php)
+
+echo "Available PHP versions:"
+PS3="Please select the PHP version you want to edit php.ini for: "
+
+select php_version in "${php_versions[@]}"; do
+    if [[ -n $php_version ]]; then
+        break
+    else
+        echo "Invalid choice. Please try again."
+    fi
+done
+
+# Define path to the php.ini file
+php_ini_path="/etc/php/${php_version}/fpm/php.ini"
+
+# Check if php.ini exists for the selected version
+if [[ ! -f "$php_ini_path" ]]; then
+    echo "The php.ini file for the selected PHP version ($php_version) does not exist."
+    exit 1
+fi
+
+# Determine the text editor to use
+if command -v mcedit >/dev/null 2>&1; then
+    editor_cmd="mcedit"
+elif command -v nano >/dev/null 2>&1; then
+    editor_cmd="nano"
+else
+    echo "No supported text editor found. Please install 'mcedit' or 'nano'."
+    exit 1
+fi
+
+# Open php.ini for the chosen PHP version in the selected editor
+echo "Opening $php_ini_path in editor $editor_cmd..."
+$editor_cmd "$php_ini_path"
+
+# Restart the PHP-FPM service for the selected version
+echo "Restarting the PHP-FPM service for PHP version $php_version..."
+systemctl restart php${php_version}-fpm
+if [ $? -ne 0 ]; then
+    systemctl status php${php_version}-fpm
+    echo "========================="
+    echo ""
+    echo "ERROR: php${php_version}-fpm restart failed - please re-run the command and fix the problem !!!"
+    echo ""
+    exit $E_RESTART;
+else
+    echo "The PHP-FPM service for PHP version ${php_version} has been restarted successfully."
+fi
+
+#----------------------------------------------------------#
+#                       Exit                               #
+#----------------------------------------------------------#
+
+exit 0;

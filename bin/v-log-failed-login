@@ -1,0 +1,31 @@
+#!/bin/bash
+# info: log failed login attempt
+# options: USER [IP]
+#
+# The function log failed login attempt
+
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+# Argument definition
+user=$1
+ip=${2-127.0.0.1}
+
+time_n_date=$(date +'%T %F')
+time=$(echo "$time_n_date" |cut -f 1 -d \ )
+date=$(echo "$time_n_date" |cut -f 2 -d \ )
+
+
+#----------------------------------------------------------#
+#                           Action                         #
+#----------------------------------------------------------#
+
+echo "$date $time $user $ip failed to login" >> $VESTA/log/auth.log
+
+#----------------------------------------------------------#
+#                       Vesta                              #
+#----------------------------------------------------------#
+
+exit 0

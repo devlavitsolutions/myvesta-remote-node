@@ -1,0 +1,31 @@
+#!/bin/bash
+# info: ensure that pool.d folders are not empty
+# options: 
+#
+# The function ensure that pool.d folders are not empty
+
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+# Includes
+source $VESTA/func/main.sh
+source $VESTA/func/domain.sh
+
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+ensure_poold_folders_not_empty
+
+
+#----------------------------------------------------------#
+#                       Vesta                              #
+#----------------------------------------------------------#
+
+# Logging
+log_event "$OK" "$ARGUMENTS"
+
+exit

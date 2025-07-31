@@ -1,0 +1,114 @@
+#!/bin/bash
+
+# info:
+# This script will move a folder to the new destination and make a symlink from the old path to the new destination
+
+# options: FROMFOLDER TOFOLDER
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ] && [ "$whoami" != "admin" ] ; then
+    echo "You must be root or admin to execute this script";
+    exit 1;
+fi
+
+# Argument definition
+FROMFOLDER=$1
+TOFOLDER=$2
+
+echo "Executing: v-move-folder-and-make-symlink $1 $2"
+
+# Includes
+source $VESTA/func/main.sh
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+if [ -z "$FROMFOLDER" ]; then
+    echo "First parameter is empty, aborting"
+    exit 1
+fi
+
+if [ -z "$TOFOLDER" ]; then
+    echo "Second parameter is empty, aborting"
+    exit 1
+fi
+
+# Trimming the ending slash, just in case
+FROMFOLDER=$(echo "$FROMFOLDER" | sed 's:/*$::')
+TOFOLDER=$(echo "$TOFOLDER" | sed 's:/*$::')
+
+if [ ! -d "$FROMFOLDER" ]; then
+    echo "Folder $FROMFOLDER does not exists, aborting"
+    exit 1
+fi
+
+if [ -L "$FROMFOLDER" ]; then
+    echo "Folder $FROMFOLDER is already symlink, aborting"
+    exit 1
+fi
+
+if [ -d "$TOFOLDER" ]; then
+    echo "Folder $TOFOLDER already exists, aborting"
+    exit 1
+fi
+
+if [ -L "$TOFOLDER" ]; then
+    echo "Folder $TOFOLDER already exists (as symlink), aborting"
+    exit 1
+fi
+
+USER=$(stat -c '%U' "$FROMFOLDER")
+GROUP=$(stat -c '%G' "$FROMFOLDER")
+PARENTFOLDER=$(dirname "$TOFOLDER")
+
+if [ ! -d "$PARENTFOLDER" ]; then
+    PUSER=$(stat -c '%U' "$PARENTFOLDER")
+    PGROUP=$(stat -c '%G' "$PARENTFOLDER")
+    echo "= Creating parent folder..."
+    mkdir -p "$PARENTFOLDER"
+    chown $PUSER:$PGROUP "$PARENTFOLDER"
+fi
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+if [ "$FROMFOLDER" = "/home/$USER" ] && [ -d "$FROMFOLDER/conf" ]; then
+    # if we are moving myVesta home folder, we must remove immutable attribute from conf/ files
+    chattr -R -i "$FROMFOLDER/conf/" > /dev/null 2>&1
+    # with slashes on the end of the path of the folder
+fi
+
+# rsync -a "$FROMFOLDER/" "$TOFOLDER/"
+# with slashes on the end of the path of both folders
+
+mv "$FROMFOLDER" "$TOFOLDER"
+if [ "$?" -ne 0 ]; then
+    echo "Error happened, aborting"
+    exit 1
+fi
+
+rm -rf "$FROMFOLDER"
+# without slash on the end of the path of the folder
+
+ln -s "$TOFOLDER" "$FROMFOLDER"
+# without slashes on the end of the path of both folders
+
+chown -h $USER:$GROUP $FROMFOLDER
+# without slash on the end of the path of the folder
+
+#----------------------------------------------------------#
+#             Log and print result                         #
+#----------------------------------------------------------#
+
+echo "Done, folder $FROMFOLDER moved to $TOFOLDER and symlinked"
+
+# Logging
+log_event "$OK" "$ARGUMENTS"
+
+exit

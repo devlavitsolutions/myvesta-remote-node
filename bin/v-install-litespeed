@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# This script installs OpenLiteSpeed on Ubuntu
+
+echo "Starting LiteSpeed installation..."
+
+yes Y | bash <( curl -k https://raw.githubusercontent.com/litespeedtech/ols1clk/master/ols1clk.sh ) -W
+
+echo "LiteSpeed Web Server installation completed."

@@ -1,0 +1,133 @@
+#!/bin/bash
+# info: Clean all unnecessary files like logs
+# options: NONE
+#
+# The function is cleaning all unnecessary files like logs
+
+#----------------------------------------------------------#
+#           Verifications & Variable & Function            #
+#----------------------------------------------------------#
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ]; then
+    echo "You must be root to execute this script"
+    exit 1
+fi
+
+echo "===== Before cleaning ====="
+df -h
+echo "==========================="
+
+# Includes
+source /usr/local/vesta/func/main.sh
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+# turn off tailf watcher process
+if [ -f "/usr/local/bin/tailf_apache_error.php" ]; then
+    kill $(ps aux | grep 'tailf_apache_error' | grep -v "grep tailf_apache_error" | awk '{print $2}')
+fi
+if [ -f "/usr/local/bin/tailf_exim.php" ]; then
+    kill $(ps aux | grep 'tailf_exim' | grep -v "grep tailf_exim" | awk '{print $2}')
+fi
+
+find /tmp/ -type f -mtime +7 -delete
+rm /var/backups/* > /dev/null 2>&1
+rm /var/cache/apt/archives/* > /dev/null 2>&1
+cd /var/log
+truncate -s 0 xferlog lastlog faillog btmp syslog;
+find /var/log/ -name "*.log" -not -path "/var/log/apt/*" -type f -exec truncate -s 0 {} \;
+find /var/log/ -name "*.err" -type f -exec truncate -s 0 {} \;
+find /var/log/ -name "errors" -type f -exec truncate -s 0 {} \;
+find /var/log/ -name "*.info" -type f -exec truncate -s 0 {} \;
+find /var/log/ -name "*.warn" -type f -exec truncate -s 0 {} \;
+find /var/log/ -type f -name "*.1" -delete
+find /var/log/ -type f -name "*.2" -delete
+find /var/log/ -type f -name "*.3" -delete
+find /var/log/ -type f -name "*.4" -delete
+find /var/log/ -type f -name "*.5" -delete
+find /var/log/ -type f -name "*.6" -delete
+find /var/log/ -type f -name "*.7" -delete
+find /var/log/ -type f -name "*.8" -delete
+find /var/log/ -type f -name "*.9" -delete
+find /var/log/ -name "*.gz" -type f -delete
+find /usr/local/vesta/log/ -type f -name "*.log" -exec truncate -s 0 {} \;
+find /usr/local/vesta/log/ -type f -not -name "*.log" -delete
+find /var/log/exim4/ -type f -exec truncate -s 0 {} \;
+truncate -s 0 /*.log > /dev/null 2>&1
+rm /panic-*.log > /dev/null 2>&1
+rm /var/log/panic-*.log > /dev/null 2>&1
+
+clean_home() {
+    nice -n 19 ionice -c 3 find $1/*/tmp/ -type f -delete > /dev/null 2>&1
+    find $1/ -name '.wp-cli' -type d -exec rm -rf {} \; > /dev/null 2>&1
+    find $1/*/web/*/public_html/wp-content/aiowps_backups/ -type f -not -name ".htaccess" -not -name "index.php" -not -name "index.html" -not -name "web.config" -delete > /dev/null 2>&1
+    find $1/*/web/*/public_html/wp-content/envato-backups/ -type f -not -name ".htaccess" -not -name "index.php" -not -name "index.html" -not -name "web.config" -delete > /dev/null 2>&1
+    find $1/*/web/*/public_html/wp-content/ai1wm-backups/ -type f -not -name ".htaccess" -not -name "index.php" -not -name "index.html" -not -name "web.config" -delete > /dev/null 2>&1
+    find $1/*/web/*/public_html/wp-content/wpvividbackups/ -type f -not -name ".htaccess" -not -name "index.php" -not -name "index.html" -not -name "web.config" -delete > /dev/null 2>&1
+    find $1/*/web/*/public_html/wp-content/updraft/ -type f -not -name ".htaccess" -not -name "index.php" -not -name "index.html" -not -name "web.config" -delete > /dev/null 2>&1
+    find $1/*/web/*/public_html/wp-content/plugins/ezpz-one-click-backup/backups/ -type f -not -name ".htaccess" -not -name "index.php" -not -name "index.html" -not -name "web.config" -delete > /dev/null 2>&1
+    find $1/*/web/*/public_html/wp-content/backups-dup-lite/ -type f -not -name ".htaccess" -not -name "index.php" -not -name "index.html" -not -name "web.config" -delete > /dev/null 2>&1
+    find $1/*/web/*/public_html/wp-content/cache/ -type f -not -name ".htaccess" -delete > /dev/null 2>&1
+    find $1/*/web/*/public_html/ -type f -name "*.wpress" -delete > /dev/null 2>&1
+    nice -n 19 ionice -c 3 find $1/*/tmp/ -type f -mtime +1 -delete > /dev/null 2>&1
+    nice -n 19 ionice -c 3 find $1/*/web/*/public_html/ -type f -name "error_log" -exec truncate -s 0 {} \;
+    nice -n 19 ionice -c 3 find $1/*/web/*/public_html/ -type f -name "error_log.txt" -exec truncate -s 0 {} \;
+    nice -n 19 ionice -c 3 find $1/ -type f -name "*.log" -exec truncate -s 0 {} \;
+}
+
+clean_home "/home"
+if [ -d "/hdd/home" ]; then
+    clean_home "/hdd/home"
+fi
+
+# Cleaning fail2ban database
+fail2ban_running=$(/usr/local/vesta/bin/v-list-sys-services | grep 'fail2ban' | grep -c 'running')
+if [ $fail2ban_running -eq 1 ]; then
+    systemctl stop fail2ban
+fi
+if [ -f "/var/lib/fail2ban/fail2ban.sqlite3" ]; then
+    rm /var/lib/fail2ban/fail2ban.sqlite3
+    if [ -f "/etc/nginx/conf.d/block.conf" ]; then
+        truncate -s 0 /etc/nginx/conf.d/block.conf
+        nginx_running=$(/usr/local/vesta/bin/v-list-sys-services | grep 'nginx' | grep -c 'running')
+        if [ $nginx_running -eq 1 ]; then
+            systemctl restart nginx
+        fi
+    fi
+fi
+if [ $fail2ban_running -eq 1 ]; then
+    systemctl start fail2ban
+fi
+
+# turn on tailf watcher process
+if [ -f "/usr/local/bin/tailf_apache_error.php" ]; then
+    nohup php /usr/local/bin/tailf_apache_error.php > /var/log/tailf_apache_error.log 2>&1 &
+fi
+if [ -f "/usr/local/bin/tailf_exim.php" ]; then
+    nohup php /usr/local/bin/tailf_exim.php > /var/log/tailf_exim.log 2>&1 &
+fi
+
+exim_installed=$(/usr/local/vesta/bin/v-list-sys-services | grep -c 'exim')
+if [ $exim_installed -gt 0 ]; then
+    systemctl restart exim4
+fi
+
+
+#----------------------------------------------------------#
+#                       Vesta                              #
+#----------------------------------------------------------#
+
+echo ""
+echo "***** Garbage cleaned *****"
+echo ""
+echo "===== After cleaning ======"
+df -h
+echo "==========================="
+
+
+log_event "$OK" "$ARGUMENTS"
+
+exit

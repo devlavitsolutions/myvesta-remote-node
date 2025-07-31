@@ -1,0 +1,14 @@
+#!/bin/bash
+
+touch /var/log/apache2/time.log
+# truncate -s 0 /var/log/apache2/time.log
+chmod 0640 /var/log/apache2/time.log
+chown root:adm /var/log/apache2/time.log
+find /home/*/conf/web/ -type f \( -name "apache2.conf" -or -name "sapache2.conf" -or -name "*.apache2.conf" -or -name "*.apache2.ssl.conf" \) -exec grep -L "time\.log" {} \; | xargs sed -i 's|ServerName |CustomLog /var/log/apache2/time.log time\n    ServerName |g'
+find /usr/local/vesta/data/templates/web/apache2 -type f \( -name "*.tpl" -or -name "*.stpl" \) -exec grep -L "time\.log" {} \; | xargs sed -i 's|ServerName |CustomLog /var/log/apache2/time.log time\n    ServerName |g'
+if ! /usr/local/vesta/bin/v-grep 'LogFormat "%t %v %a %D %r %>s \"%{User-Agent}i\"" time' '/etc/apache2/apache2.conf' '-q'; then
+    sed -i 's|LogFormat "%b" bytes|LogFormat "%b" bytes\nLogFormat "%t %v %a %D %r %>s \\\"%{User-Agent}i\\\" pid=%P" time|g' /etc/apache2/apache2.conf
+fi
+systemctl restart apache2
+
+wget -nv http://dl.myvestacp.com/vesta/apache_requests_analyzer/analyze-traffic.php -O /root/analyze-traffic.php

@@ -1,0 +1,77 @@
+#!/bin/bash
+
+gen_pass() {
+    MATRIX='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    if [ -z "$1" ]; then
+        LENGTH=32
+    else
+        LENGTH=$1
+    fi
+    while [ ${n:=1} -le $LENGTH ]; do
+        PASS="$PASS${MATRIX:$(($RANDOM%${#MATRIX})):1}"
+        let n+=1
+    done
+    echo "$PASS"
+}
+
+eximversion=$(exim4 --version | grep '^Exim version ' | awk '{print $3}')
+if (( $(echo "$eximversion < 4.96" | bc -l) )); then
+    echo "= ERROR: Exim SRS support requires Exim 4.96 or higher."
+    echo "You have Exim $eximversion"
+    exit 1;
+fi
+
+echo "=== Addind SRS support to Exim4 ==="
+# SRS support is taken from HestiaCP
+
+if [ ! -f "/etc/exim4/srs.conf" ]; then
+    echo "= Generating SRS KEY"
+    srs=$(gen_pass 16) 
+    echo $srs > /etc/exim4/srs.conf
+    chmod 640 /etc/exim4/srs.conf
+    chown root:Debian-exim /etc/exim4/srs.conf
+fi
+
+if [ ! -f "/etc/exim4/exim4.conf.template.backup-without-srs" ]; then
+    echo "= Backing up /etc/exim4/exim4.conf.template"
+    cp /etc/exim4/exim4.conf.template /etc/exim4/exim4.conf.template.backup-without-srs
+fi
+
+if ! /usr/local/vesta/bin/v-grep 'SRS_SECRET = ' '/etc/exim4/exim4.conf.template' '-q'; then
+    echo "= Adding: SRS_SECRET = readfile /etc/exim4/srs.conf"
+    v-sed 'smtputf8_advertise_hosts =' 'smtputf8_advertise_hosts =\n\nSRS_SECRET = ${readfile{/etc/exim4/srs.conf}}' '/etc/exim4/exim4.conf.template'
+fi
+
+if ! /usr/local/vesta/bin/v-grep 'if outbound, and forwarding has been done, use an alternate transport' '/etc/exim4/exim4.conf.template' '-q'; then
+    echo "= Patching \"dnslookup:\" block"
+    /usr/local/vesta/bin/v-php-func "replace_in_file_once_between_including_borders" "/etc/exim4/exim4.conf.template" 'dnslookup:' '  no_more' 'dnslookup:\n  driver = dnslookup\n  # if outbound, and forwarding has been done, use an alternate transport\n  domains = ! +local_domains\n  transport = ${if eq {$local_part@$domain} \\n                      {$original_local_part@$original_domain} \\n                      {remote_smtp} {remote_forwarded_smtp}}\n  no_more'
+fi
+
+if ! /usr/local/vesta/bin/v-grep 'inbound_srs:' '/etc/exim4/exim4.conf.template' '-q'; then
+    echo "= Adding \"inbound_srs\" and \"inbound_srs_failure\" blocks"
+    v-sed 'aliases:' 'inbound_srs:\n    driver = redirect\n    senders = :\n    domains = +local_domains\n    # detect inbound bounces which are converted to SRS, and decode them\n    condition = ${if inbound_srs {$local_part} {SRS_SECRET}}\n    data = $srs_recipient\n\ninbound_srs_failure:\n    driver = redirect\n    senders = :\n    domains = +local_domains\n    # detect inbound bounces which look converted to SRS but are invalid\n    condition = ${if inbound_srs {$local_part} {}}\n    allow_fail\n    data = :fail: Invalid SRS recipient address\n\naliases:' '/etc/exim4/exim4.conf.template'
+fi
+
+if ! /usr/local/vesta/bin/v-grep 'remote_forwarded_smtp:' '/etc/exim4/exim4.conf.template' '-q'; then
+    echo "= Adding \"remote_forwarded_smtp:\" block"
+    v-sed 'procmail:\n  driver = pipe' 'remote_forwarded_smtp:\n  driver = smtp\n  dkim_domain = DKIM_DOMAIN\n  dkim_selector = mail\n  dkim_private_key = DKIM_PRIVATE_KEY\n  dkim_canon = relaxed\n  dkim_strict = 0\n  hosts_try_fastopen = \n  hosts_try_chunking = !93.188.3.0/24\n  message_linelength_limit = 1G\n  # modify the envelope from, for mails that we forward\n  max_rcpt = 1\n  return_path = ${srs_encode {SRS_SECRET} {$return_path} {$original_domain}}\n\nprocmail:\n  driver = pipe' '/etc/exim4/exim4.conf.template'
+fi
+
+touch /etc/exim4/limit_per_email_account_max_sent_emails_per_hour
+touch /etc/exim4/limit_per_email_account_max_recipients
+touch /etc/exim4/limit_per_hosting_account_max_sent_emails_per_hour
+touch /etc/exim4/limit_per_hosting_account_max_recipients
+
+echo "= Restarting exim4 service"
+systemctl restart exim4
+
+if [ $? -ne 0 ]; then
+    systemctl status exim4
+    cp /etc/exim4/exim4.conf.template.backup-without-srs /etc/exim4/exim4.conf.template
+    systemctl restart exim4
+    echo "=== Patching failed, old exim conf returned, exim4 restarted again."
+    exit 1
+fi
+echo "=== SRS support was added successfully. ==="
+
+exit 0

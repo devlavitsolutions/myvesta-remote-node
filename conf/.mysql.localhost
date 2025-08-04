@@ -2,3 +2,6 @@
 host='localhost'
 user='root'
 password='AfcRIhW3JcyS87iFxUQXqtj4CCNmJE3O'
+hchq_dbname='hchq_db'
+hchq_charset='utf8'
+hchq_port='3306'

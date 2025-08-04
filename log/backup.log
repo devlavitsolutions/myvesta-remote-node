@@ -1,3 +1,5 @@
+hchq_db.domains                                    OK
+hchq_db.phinxlog                                   OK
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
@@ -69,42 +71,31 @@ admin
 --------------------------------
 
 -- SYSTEM --
-2025-07-26 01:10:03 admin.conf
-2025-07-26 01:10:03 stats.log
-2025-07-26 01:10:03 history.log
-2025-07-26 01:10:03 pam
+2025-08-02 01:10:03 admin.conf
+2025-08-02 01:10:03 stats.log
+2025-08-02 01:10:03 history.log
+2025-08-02 01:10:03 pam
 
 
 -- WEB --
-2025-07-26 01:10:03 hostcontrolhq-node2.example.com
-2025-07-26 01:10:03 *** 1 domain ***
+2025-08-02 01:10:03 hostcontrolhq-node2.example.com
+2025-08-02 01:10:03 test1.com
+2025-08-02 01:10:11 test2.com
+2025-08-02 01:10:11 *** 3 domains ***
 
 -- DNS --
-2025-07-26 01:10:03 hostcontrolhq-node2.example.com
-2025-07-26 01:10:03 *** 1 domain ***
+2025-08-02 01:10:11 hostcontrolhq-node2.example.com
+2025-08-02 01:10:11 test2.com
+2025-08-02 01:10:11 *** 2 domains ***
 
 -- MAIL --
-2025-07-26 01:10:04 hostcontrolhq-node2.example.com
-2025-07-26 01:10:04 *** 1 domain ***
+2025-08-02 01:10:11 hostcontrolhq-node2.example.com
+2025-08-02 01:10:11 test2.com
+2025-08-02 01:10:11 *** 2 domains ***
 
 -- DB --
-2025-07-26 01:10:04 *** 0 databases ***
-
--- CRON --
-2025-07-26 01:10:04 *** 8 jobs ***
-
--- User Dir --
-2025-07-26 01:10:04 adding .bash_logout
-2025-07-26 01:10:04 adding .bashrc
-2025-07-26 01:10:04 adding .cloud-locale-test.skip
-2025-07-26 01:10:04 adding .profile
-2025-07-26 01:10:04 adding .sudo_as_admin_successful
-2025-07-26 01:10:04 *** 5 directories ***
-
--- SUMMARY --
-2025-07-26 01:10:04 Local: /backup/admin.2025-07-26_01-10-04.tar
-2025-07-26 01:10:04 Size: 1 MB
-2025-07-26 01:10:04 Runtime: 1 minute
+2025-08-02 01:10:11 admin_test1_com (mysql)
+Error: Connection to localhost failed
 
 --------------------------------
 

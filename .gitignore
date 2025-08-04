@@ -1,0 +1,52 @@
+# Node.js dependencies (if any)
+node_modules/
+
+# Python dependencies (if any)
+venv/
+
+# Build files or temporary generated files
+build/
+dist/
+
+# Configuration files that contain sensitive information
+config/configuration.conf
+config/hosting.conf
+config/nginx.conf
+config/apache2.conf
+data/firewall/banlist.conf
+
+# Log files and directories
+log/
+*.log
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+*.rrd
+*.json
+
+# Compiled PHP files
+*.php~
+
+# Vesta temporary directories and files
+tmp/
+cache/
+
+# IDE/editor files (common ones)
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore RRD database files
+web/rrd/
+
+# Other ignored directories or files specific to your environment
+.env

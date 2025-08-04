@@ -1,4 +1,4 @@
 Get:1 https://apt.myvestacp.com/bookworm bookworm InRelease [2298 B]
-Get:2 https://apt.myvestacp.com/bookworm bookworm/vesta amd64 Packages [1071 B]
-Fetched 3369 B in 0s (8511 B/s)
+Get:2 https://apt.myvestacp.com/bookworm bookworm/vesta amd64 Packages [1073 B]
+Fetched 3371 B in 0s (6885 B/s)
 Reading package lists...

@@ -1,0 +1,72 @@
+<div class="l-center">
+    <div class="clearfix noselect l-info-panel">
+        <h2>Manage All LiteSpeed Cache for WordPress Installations</h2>
+        <div>
+            <form method="POST" style="display: inline;">
+                <input type="hidden" name="scan" value="1">
+                <button type="submit">Scan</button>
+            </form>
+            <button>Unflag All</button>
+        </div>
+        <div>
+            With Selected:
+            <button>Enable</button>
+            <button>Disable</button>
+            <button>Flag</button>
+            <button>Unflag</button>
+        </div>
+        <div>
+            LiteSpeed Cache Plugin Version: 7.2
+        </div>
+        <table id="myTable" class="display data">
+            <thead>
+                <tr>
+                <th></th>
+                <th>URL</th>
+                <th>Cached</th>
+                <th>Flagged</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                <td><input type="checkbox" class="row-check"></td>
+                <td>https://example.com/page1</td>
+                <td><input type="checkbox" class="cached"></td>
+                <td><input type="checkbox" class="flagged"></td>
+                </tr>
+                <tr>
+                <td><input type="checkbox" class="row-check"></td>
+                <td>https://example.com/page2</td>
+                <td><input type="checkbox" class="cached" checked></td>
+                <td><input type="checkbox" class="flagged" checked></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <script>
+            $(document).ready(function () {
+                $.noConflict();
+
+                $('#myTable').DataTable({
+                    columnDefs: [
+                        { orderable: false, targets: [0, 2, 3] }  // disable sorting on checkbox columns
+                    ],
+                    paging: true,
+                    searching: true
+                });
+
+                // Optional: event listeners
+                $('#myTable').on('change', '.row-check', function () {
+                    const url = $(this).closest('tr').find('td:eq(1)').text();
+                    console.log('Selected row:', url);
+                });
+
+                $('#myTable').on('change', '.cached, .flagged', function () {
+                    const label = $(this).hasClass('cached') ? 'Cached' : 'Flagged';
+                    const state = $(this).is(':checked');
+                    const url = $(this).closest('tr').find('td:eq(1)').text();
+                });
+            });
+        </script>
+    </div>
+</div>

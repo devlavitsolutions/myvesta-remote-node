@@ -1,33 +1,51 @@
 <?php
 
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+
 class Database
 {
+    const DEFAULT_HOST     = 'localhost';
+    const DEFAULT_USER     = 'root';
+    const DEFAULT_PASSWORD = '';
+    const DEFAULT_DB_NAME  = 'myvesta_newdb';
+    const DEFAULT_CHARSET  = 'utf8';
+    const DEFAULT_PORT     = '3306';
+
     private $db_host;
     private $db_user;
     private $db_password;
     private $db_name;
     private $db_charset;
-    private $pdo;
+    private $mysqli;
     private $db_port;
 
     // Constructor to initialize the database connection parameters
     public function __construct($configFile)
     {
         // Read configuration from the provided file
-        $config = $this->parse_mysql_config($configFile);
+        try {
+            $config = $this->parse_mysql_config($configFile);
+        } catch (Exception $e) {
+            die('Database config error: ' . $e->getMessage());
+        }
 
         // Set the connection parameters using the config file
-        // $this->db_host = $config['host'] ?? $config['HOST'] ?? 'localhost';
-        // $this->db_user = $config['user'] ?? $config['USER'] ?? 'root';
-        // $this->db_password = $config['password'] ?? $config['PASSWORD'] ?? '';
-        // $this->db_name = $config['hchq_dbname'] ?? $config['HCHQ_DBNAME'] ?? 'myvesta_newdb';
-        // $this->db_charset = $config['hchq_charset'] ?? $config['HCHQ_CHARSET'] ?? 'utf8';
-        // $this->db_port = $config['hchq_port'] ?? $config['HCHQ_PORT'] ?? '3306';
+        $this->db_host     = isset($config['host']) ? $config['host'] : (isset($config['HOST']) ? $config['HOST'] : self::DEFAULT_HOST);
+        $this->db_user     = isset($config['user']) ? $config['user'] : (isset($config['USER']) ? $config['USER'] : self::DEFAULT_USER);
+        $this->db_password = isset($config['password']) ? $config['password'] : (isset($config['PASSWORD']) ? $config['PASSWORD'] : self::DEFAULT_PASSWORD);
+        $this->db_name     = isset($config['hchq_dbname']) ? $config['hchq_dbname'] : (isset($config['HCHQ_DBNAME']) ? $config['HCHQ_DBNAME'] : self::DEFAULT_DB_NAME);
+        $this->db_charset  = isset($config['hchq_charset']) ? $config['hchq_charset'] : (isset($config['HCHQ_CHARSET']) ? $config['HCHQ_CHARSET'] : self::DEFAULT_CHARSET);
+        $this->db_port     = isset($config['hchq_port']) ? $config['hchq_port'] : (isset($config['HCHQ_PORT']) ? $config['HCHQ_PORT'] : self::DEFAULT_PORT);
     }
 
     // Function to parse the config files and return values as an associative array
     private function parse_mysql_config($file)
     {
+        if (!file_exists($file)) {
+            throw new Exception("Configuration file not found: $file");
+        }
+
         $config = [];
         if (file_exists($file)) {
             $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES); // Read the file line by line
@@ -39,6 +57,11 @@ class Database
                 }
             }
         }
+
+        if (empty($config)) {
+            throw new Exception("Configuration file is empty or invalid: $file");
+        }
+
         return $config;
     }
 
@@ -69,73 +92,71 @@ class Database
     // Function to establish the database connection
     public function connect($db_already_created = true)
     {
-        try {
-            // Set the DSN (Data Source Name) for PDO
-            $dsn = "mysql:host=$this->db_host";
-            if ($db_already_created) {
-                $dsn .= ";dbname=$this->db_name;charset=$this->db_charset";
-            }
-
-            // Create a PDO instance
-            $this->pdo = new PDO($dsn, $this->db_user, $this->db_password);
-            $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-            return $this->pdo;
-        } catch (PDOException $e) {
-            print_r($e);
-            exit;
+        // Connect either to specific database or just to the server
+        if ($db_already_created) {
+            $this->mysqli = mysqli_connect('localhost', 'root', $this->db_password, $this->db_name, 3306, '/var/run/mysqld/mysqld.sock');
+        } else {
+            $this->mysqli = mysqli_connect('localhost', 'root', $this->db_password, '', 3306, '/var/run/mysqld/mysqld.sock');
         }
+
+        if ($this->mysqli->connect_error) {
+            die("Connection failed: " . $this->mysqli->connect_error);
+        }
+
+        // Set charset
+        $this->mysqli->set_charset($this->db_charset);
+
+        return $this->mysqli;
     }
 
     public function createDatabaseIfNotExists()
     {
-        try {
-            // First, connect to MySQL without specifying a database
-            $this->connect(false); // This connects to MySQL server without any specific database
+        $this->connect(false); // connect without db
 
-            // Check if the database already exists
-            $stmt = $this->pdo->prepare("SHOW DATABASES LIKE :db_name");
-            $stmt->bindParam(':db_name', $this->db_name);
-            $stmt->execute();
+        $dbNameEscaped = $this->mysqli->real_escape_string($this->db_name);
 
-            // If the database doesn't exist, create it
-            if ($stmt->rowCount() === 0) {
-                $stmt = $this->pdo->prepare("CREATE DATABASE IF NOT EXISTS `$this->db_name` CHARACTER SET $this->db_charset COLLATE utf8_general_ci");
-                $stmt->execute();
-            }
-        } catch (PDOException $e) {
-            exit;
+        $sql = "SHOW DATABASES LIKE '$dbNameEscaped'";
+        $result = $this->mysqli->query($sql);
+
+        if ($result && $result->num_rows === 0) {
+            $sqlCreate = "CREATE DATABASE `$dbNameEscaped` CHARACTER SET $this->db_charset COLLATE utf8_general_ci";
+            $this->mysqli->query($sqlCreate);
         }
+
+        $result->free();
     }
 
-    // Getter for PDO instance
     public function getConnection()
     {
-        return $this->pdo;
+        return $this->mysqli;
     }
 
     public function hasTable(string $tableName)
     {
-        try {
-            // Prepare and execute the SQL to check if the table exists
-            $stmt = $this->pdo->prepare("SHOW TABLES LIKE :table_name");
-            $stmt->bindParam(':table_name', $tableName);
-            $stmt->execute();
+        $tableNameEscaped = $this->mysqli->real_escape_string($tableName);
 
-            // If a row is returned, the table exists
-            return $stmt->rowCount() > 0;
-        } catch (PDOException $e) {
-            return false;
+        $sql = "SHOW TABLES LIKE '$tableNameEscaped'";
+        $result = $this->mysqli->query($sql);
+
+        if ($result) {
+            $exists = $result->num_rows > 0;
+            $result->free();
+            return $exists;
         }
+
+        return false;
     }
 
     public function syncDomainsFromScan(array $scanned)
     {
-        $pdo = $this->connect(); // Ensure DB is connected
+        $mysqli = $this->connect(); // Connect using MySQLi instead of PDO
 
         // Fetch current DB domains
-        $stmt = $pdo->query("SELECT name FROM domains");
-        $existingDomains = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $result = $mysqli->query("SELECT name FROM domains");
+        $existingDomains = [];
+        while ($row = $result->fetch_assoc()) {
+            $existingDomains[] = $row['name'];
+        }
 
         // Create scanned name => hasWordPress map
         $scannedMap = [];
@@ -149,41 +170,89 @@ class Database
         $toDelete = array_diff($existingDomains, $scannedNames);
         if (!empty($toDelete)) {
             $placeholders = implode(',', array_fill(0, count($toDelete), '?'));
-            $stmt = $pdo->prepare("DELETE FROM domains WHERE name IN ($placeholders)");
-            $stmt->execute(array_values($toDelete));
+            $stmt = $mysqli->prepare("DELETE FROM domains WHERE name IN ($placeholders)");
+            $types = str_repeat('s', count($toDelete));
+            $stmt->bind_param($types, ...$toDelete);
+            $stmt->execute();
         }
 
         // Insert new domains
         $toInsert = array_diff($scannedNames, $existingDomains);
         if (!empty($toInsert)) {
-            $stmt = $pdo->prepare("
+            $stmt = $mysqli->prepare("
                 INSERT INTO domains (name, hasWordPress, isCacheEnabled, isFlagged, created_at, updated_at)
-                VALUES (:name, :hasWordPress, 0, 0, :created_at, :updated_at)
+                VALUES (?, ?, 0, 0, ?, ?)
             ");
             $now = date('Y-m-d H:i:s');
             foreach ($toInsert as $name) {
-                $stmt->execute([
-                    ':name' => $name,
-                    ':hasWordPress' => $scannedMap[$name] ? 1 : 0,
-                    ':created_at' => $now,
-                    ':updated_at' => $now,
-                ]);
+                $hasWP = $scannedMap[$name] ? 1 : 0;
+                $stmt->bind_param("siss", $name, $hasWP, $now, $now);
+                $stmt->execute();
             }
         }
 
         // Update hasWordPress for all
-        $stmt = $pdo->prepare("
-            UPDATE domains SET hasWordPress = :hasWordPress, updated_at = :updated_at WHERE name = :name
+        $stmt = $mysqli->prepare("
+            UPDATE domains SET hasWordPress = ?, updated_at = ? WHERE name = ?
         ");
         $now = date('Y-m-d H:i:s');
         foreach ($scannedMap as $name => $hasWP) {
-            $stmt->execute([
-                ':name' => $name,
-                ':hasWordPress' => $hasWP ? 1 : 0,
-                ':updated_at' => $now,
-            ]);
+            $stmt->bind_param("iss", $hasWP, $now, $name);
+            $stmt->execute();
         }
 
         return true;
+    }
+
+    public function select($table, $columns = '*', $limit = 0, $where = '', $extra = '')
+    {
+        // Make sure $columns is a string or an array
+        if (is_array($columns)) {
+            $columns = implode(', ', array_map(function ($col) {
+                return "`" . trim($col, "` ") . "`";
+            }, $columns));
+        } elseif (empty($columns)) {
+            $columns = '*';
+        }
+
+        $sql = "SELECT $columns FROM `$table`";
+
+        if (!empty($where)) {
+            $sql .= " WHERE $where";
+        }
+
+        if (!empty($extra)) {
+            $sql .= " $extra";
+        }
+
+        if ($limit > 0) {
+            $sql .= " LIMIT $limit";
+        }
+
+        $result = $this->mysqli->query($sql);
+
+        if (!$result) {
+            throw new Exception("Query failed: " . $this->mysqli->error);
+        }
+
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function update($table, $set, $where = '')
+    {
+        $setClauses = [];
+        foreach ($set as $column => $value) {
+            $escapedValue = $this->mysqli->real_escape_string($value);
+            $setClauses[] = "`$column` = '$escapedValue'";
+        }
+        $sql = "UPDATE `$table` SET " . implode(', ', $setClauses);
+        if (!empty($where)) {
+            $sql .= " WHERE $where";
+        }
+        $result = $this->mysqli->query($sql);
+        if (!$result) {
+            throw new Exception("Update failed: " . $this->mysqli->error);
+        }
+        return $result;
     }
 }

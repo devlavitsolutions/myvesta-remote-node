@@ -1,0 +1,27 @@
+#!/bin/bash
+# info: Download WP CLI
+# options: NONE
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ]; then
+    echo "You must be root to execute this script"
+    exit 1
+fi
+
+echo "= Installing WP CLI by downloading phar file..."
+wget -nv https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -O /usr/local/bin/wp
+chmod +x /usr/local/bin/wp
+
+if [ -f "/usr/local/bin/wp" ]; then
+    echo "= WP CLI installed successfully."
+    echo "= Usage: v-run-wp-cli DOMAIN WP_CLI_COMMAND"
+    exit 0;
+else
+    echo "= WP CLI installation failed."
+    echo "= Please install it manually."
+    exit 1;
+fi

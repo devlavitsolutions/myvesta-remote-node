@@ -119,13 +119,11 @@
 	          </a>
 	        </div>
 		<?php } ?>
-		<?php if($panel[$user]['LITESPEEDS'] != "0") { ?>
-	        <div class="l-stat__col <?php if($TAB == 'LITESPEED' ) echo 'l-stat__col--active' ?>">
-	          <a href="/list/litespeed/">
-	            <div class="l-stat__col-title"><?=__('LITESPEED')?></div>
-	          </a>
-	        </div>
-		<?php } ?>
+		<div class="l-stat__col <?php if($TAB == 'LITESPEED' ) echo 'l-stat__col--active' ?>">
+			<a href="/list/litespeed/">
+			<div class="l-stat__col-title"><?=__('LITESPEED')?></div>
+			</a>
+		</div>
 <?php
 $vesta_version=file_get_contents('/usr/local/vesta/version.txt');
 $vesta_build_date=file_get_contents('/usr/local/vesta/build_date.txt');

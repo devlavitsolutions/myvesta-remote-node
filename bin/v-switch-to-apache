@@ -1,23 +1,29 @@
 #!/bin/bash
+set -e
 
-# Stop LiteSpeed server
-echo "Stopping LiteSpeed server..."
-systemctl stop lsws
+# CONFIG
+APACHE_SERVICE="apache2"
+OLS_SERVICE="lsws"
 
-# Check if LiteSpeed stopped successfully
-if systemctl is-active --quiet lsws; then
-  echo "LiteSpeed failed to stop!"
+echo "=== Switching from LiteSpeed to Apache ==="
+
+# 1. Stop LiteSpeed
+echo "Stopping LiteSpeed..."
+systemctl stop "$OLS_SERVICE" || true
+systemctl disable "$OLS_SERVICE" || true
+
+# 2. Start Apache
+echo "Starting Apache..."
+systemctl enable "$APACHE_SERVICE" || true
+systemctl start "$APACHE_SERVICE"
+
+if systemctl is-active --quiet "$APACHE_SERVICE"; then
+    echo "Apache started successfully."
 else
-  echo "LiteSpeed stopped successfully."
+    echo "Apache failed to start!"
+    exit 1
 fi
 
-# Start Apache server
-echo "Starting Apache server..."
-systemctl start apache2
-
-# Check if Apache started successfully
-if systemctl is-active --quiet apache2; then
-  echo "Apache started successfully."
-else
-  echo "Apache failed to start."
-fi
+# 3. Confirm which process has port 80
+echo "Port 80 is now handled by:"
+ss -ltnp | grep ':80' || echo "No process on port 80!"

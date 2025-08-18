@@ -4,6 +4,7 @@ $TAB = 'LITESPEED';
 
 // Main include
 include($_SERVER['DOCUMENT_ROOT'].'/inc/main.php');
+require_once $_SERVER['DOCUMENT_ROOT'] . '/../db/Database.php';
 
 $output = [];
 $return_var = 0;
@@ -50,6 +51,24 @@ if (isset($_SESSION['bash_log'])) {
     $bash_log = htmlspecialchars($_SESSION['bash_log']);
     unset($_SESSION['bash_log']);
 }
+
+// try {
+//     $configFile = $_SERVER['DOCUMENT_ROOT'] . '/../conf/.mysql.localhost';
+//     $db = new Database($configFile);
+//     $db->connect();
+//     $rows = $db->select(
+//         'lsc_versions',
+//         ['version', 'created_at'],
+//         1, // LIMIT 1
+//         '', // No WHERE condition
+//         'ORDER BY created_at DESC'
+//     );
+
+//     $latest_version = $rows ? $rows[0]['version'] : null;
+// } catch (Exception $ex) {
+//     $latest_version = '-';
+// }
+$latest_version = '7.3.0.1';
 
 render_page($user, $TAB, 'list_litespeed');
 

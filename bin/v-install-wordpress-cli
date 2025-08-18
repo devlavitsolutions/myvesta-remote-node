@@ -1,0 +1,37 @@
+#!/bin/bash
+# info: Script for installing WordFence CLI
+# options: NONE
+
+if ! command -v git &> /dev/null; then
+    echo "= Git is not installed. Installing..."
+    apt-get update > /dev/null 2>&1
+    apt-get install -y git
+fi
+
+cd /root
+
+if [ ! -d "myvesta-wordfence-cli" ]; then
+    git clone https://github.com/isscbta/myvesta-wordfence-cli.git
+    cd ~/myvesta-wordfence-cli/
+else
+    cd ~/myvesta-wordfence-cli/
+    git pull
+fi
+
+echo ""
+echo "----------------------------------------------------------------"
+echo ""
+echo "Which Docker container do you want to install for WordFence CLI?"
+echo "1. WordFence CLI official Docker container"
+echo "2. WordFence CLI Docker container maintained by myVesta"
+read -r -p "Enter your choice: " choice < /dev/tty
+
+if [ "$choice" == "1" ]; then
+    bash wf-cli-install.sh
+fi
+
+if [ "$choice" == "2" ]; then
+    bash wf-cli-install-our-image.sh
+fi
+
+exit 0;

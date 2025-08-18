@@ -1,16 +1,40 @@
 <div class="l-center">
-    <div class="clearfix noselect l-info-panel">
-        <h2>Cache Location Form</h2>
-        <form action="process_form.php" method="POST">
-            <div class="actions">
-                <label for="server_cache">Server Cache Location:</label>
-                <input type="text" id="server_cache" name="server_cache" required class="vst-input">
+    <div class="container" style="max-width: 600px; margin-top: 30px;">
+        <div class="panel panel-default">
+            <div class="panel-heading pt-4">
+                <h3 class="panel-title">Cache Location Form</h3>
             </div>
-            <div class="actions">
-                <label for="vhost_cache">VHOST Cache Location:</label>
-                <input type="text" id="vhost_cache" name="vhost_cache" required class="vst-input">
+            <div class="panel-body">
+
+                <?php if (isset($_SESSION['flash_success'])): ?>
+                    <div class="alert alert-success"><?php echo $_SESSION['flash_success']; unset($_SESSION['flash_success']); ?></div>
+                <?php endif; ?>
+
+                <form action="<?= $_SESSION['back'] ?>" method="POST">
+                    <div class="form-group">
+                        <label for="server_cache">Server Cache Location:</label>
+                        <input type="text"
+                            id="server_cache"
+                            name="server_cache"
+                            value="<?php echo htmlspecialchars(isset($data['server_cache']) ? $data['server_cache'] : ''); ?>"
+                            required
+                            class="form-control">
+                    </div>
+
+                    <div class="form-group pb-4">
+                        <label for="vhost_cache">VHOST Cache Location:</label>
+                        <input type="text"
+                            id="vhost_cache"
+                            name="vhost_cache"
+                            value="<?php echo htmlspecialchars(isset($data['vhost_cache']) ? $data['vhost_cache'] : ''); ?>"
+                            required
+                            class="form-control">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+
             </div>
-            <input type="submit" value="Submit">
-        </form>
+        </div>
     </div>
 </div>

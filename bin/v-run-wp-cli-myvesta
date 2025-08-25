@@ -1,0 +1,21 @@
+#!/bin/bash
+
+if [ ! -f "/usr/local/bin/wp-cli/php/boot-fs.php" ]; then
+    echo "= myVesta WP CLI is not installed. Installing..."
+    /usr/local/vesta/bin/v-install-wp-cli-myvesta
+fi
+
+if [ -f "/usr/local/bin/wp-cli/php/boot-fs.php" ]; then
+    # Get current time and file ctime in seconds since epoch
+    current_time=$(date +%s)
+    file_ctime=$(stat -c %Z /usr/local/bin/wp-cli/php/boot-fs.php)
+    # Calculate age in days
+    age_days=$(( (current_time - file_ctime) / 86400 ))
+    if [ "$age_days" -gt 30 ]; then
+        echo "= The /usr/local/bin/wp-cli/php/boot-fs.php file is older than 30 days (based on CTime)."
+        echo "= Updating myVesta WP CLI..."
+        /usr/local/vesta/bin/v-install-wp-cli-myvesta
+    fi
+fi
+
+USE_WP_CLI_MYVESTA=1 /usr/local/vesta/bin/v-run-wp-cli "$@"

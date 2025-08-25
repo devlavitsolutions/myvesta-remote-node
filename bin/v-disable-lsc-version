@@ -1,0 +1,81 @@
+#!/bin/bash
+# v-disable-lscache
+#
+# Disables (and optionally uninstalls) the LiteSpeed Cache plugin
+# for one or more WordPress domains managed by MyVesta.
+#
+# Usage:
+#   sudo ./v-disable-lscache domain1.com [domain2.com ...] [--uninstall]
+#
+# Example:
+#   sudo ./v-disable-lscache example.com site2.com
+#   sudo ./v-disable-lscache example.com --uninstall
+#
+
+WP_CLI_BIN="/usr/local/bin/wp"
+WEB_ROOT="/home"
+PLUGIN_SLUG="litespeed-cache"
+
+# --- Parse args ---
+UNINSTALL=0
+DOMAINS=()
+
+for arg in "$@"; do
+    case "$arg" in
+        --uninstall)
+            UNINSTALL=1
+            ;;
+        *)
+            DOMAINS+=("$arg")
+            ;;
+    esac
+done
+
+if [ ${#DOMAINS[@]} -eq 0 ]; then
+    echo "Usage: v-disable-lscache domain1.com [domain2.com ...] [--uninstall]"
+    exit 1
+fi
+
+# --- Ensure WP-CLI exists ---
+if [ ! -x "$WP_CLI_BIN" ]; then
+    echo "[ERROR] WP-CLI not found at $WP_CLI_BIN"
+    exit 1
+fi
+
+# --- Disable/Uninstall LSCache for each domain ---
+for domain in "${DOMAINS[@]}"; do
+    echo "=== Processing $domain ==="
+
+    WP_PATH=$(find "$WEB_ROOT" -maxdepth 4 -type d -path "*/web/$domain/public_html" 2>/dev/null | head -n 1)
+
+    if [ -z "$WP_PATH" ]; then
+        echo "[WARN] No directory found for $domain"
+        continue
+    fi
+
+    if [ ! -f "$WP_PATH/wp-includes/version.php" ]; then
+        echo "[WARN] $domain does not appear to have WordPress installed"
+        continue
+    fi
+
+    OWNER=$(stat -c "%U" "$WP_PATH")
+
+    if ! sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin is-installed "$PLUGIN_SLUG" >/dev/null 2>&1; then
+        echo "[INFO] LSCache not installed on $domain"
+        continue
+    fi
+
+    echo "[INFO] Deactivating LSCache for $domain ..."
+    sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin deactivate "$PLUGIN_SLUG"
+
+    if [ $UNINSTALL -eq 1 ]; then
+        echo "[INFO] Uninstalling LSCache from $domain ..."
+        sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin uninstall "$PLUGIN_SLUG" --skip-delete
+    fi
+
+    if ! sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin is-active "$PLUGIN_SLUG" >/dev/null 2>&1; then
+        echo "[OK] LSCache is disabled for $domain"
+    else
+        echo "[ERROR] Failed to disable LSCache for $domain"
+    fi
+done

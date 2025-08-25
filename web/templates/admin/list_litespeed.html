@@ -1,84 +1,98 @@
-<div class="l-center">
-    <div class="clearfix noselect l-info-panel">
-        <table class="table-data">
-            <tr>
-                <td>Apache version:</td>
-                <td><?= $apache_version; ?></td>
-            </tr>
-            <tr>
-                <td>LiteSpeed version:</td>
-                <td><?= $is_liteSpeed_installed
-                    ? $liteSpeed_version
-                    : '<span class="error">Not installed</span>';
-                ?></td>
-            </tr>
-            <tr>
-                <td>Is Apache running:</td>
-                <td><?= $is_apache_running
-                    ? '<span class="success">Yes</span>'
-                    : '<span class="error">No</span>'
-                ?></td>
-            </tr>
-            <tr>
-                <td>Is LiteSpeed running:</td>
-                <td><?= $is_liteSpeed_running
-                    ? '<span class="success">Yes</span>'
-                    : '<span class="error">No</span>'
-                ?></td>
-            </tr>
-        </table>
-    </div>
-    <pre class="bash-error"><?= $bash_log ?></pre>
-    <div class="clearfix noselect l-stat__col-title l-sort">
-        Manage LiteSpeed Web Server
-    </div>
-    <div class="actions-panel clearfix">
-        <div class="actions-panel__litespeed" key-action="href">
-            <a href="/litespeed/start?action=install">
-                <?=__('Install LiteSpeed')?>
-            </a>
+<div class="l-center pt-4">
+    <div class="container my-3">
+    <!-- Server Info -->
+    <div class="card mb-3">
+        <div class="card-body p-3">
+            <table class="table table-sm table-borderless mb-0">
+                <tbody>
+                    <tr>
+                        <th scope="row">Apache version:</th>
+                        <td><?= $apache_version; ?></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">LiteSpeed version:</th>
+                        <td>
+                            <?= $is_liteSpeed_installed
+                                ? $liteSpeed_version
+                                : '<span class="text-danger">Not installed</span>';
+                            ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Is Apache running:</th>
+                        <td>
+                            <?= $is_apache_running
+                                ? '<span class="text-success fw-bold">Yes</span>'
+                                : '<span class="text-danger fw-bold">No</span>';
+                            ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Is LiteSpeed running:</th>
+                        <td>
+                            <?= $is_liteSpeed_running
+                                ? '<span class="text-success fw-bold">Yes</span>'
+                                : '<span class="text-danger fw-bold">No</span>';
+                            ?>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
+    </div>
+
+    <!-- Bash Log -->
+    <?php if (!empty($bash_log)): ?>
+        <pre class="bg-dark text-light p-3 rounded small mb-4"><?= $bash_log ?></pre>
+    <?php endif; ?>
+
+    <!-- Manage LiteSpeed Web Server -->
+    <h6 class="fw-bold mb-3">Manage LiteSpeed Web Server</h6>
+    <div class="mb-4 d-flex flex-wrap gap-2">
         <?php if ($is_liteSpeed_installed): ?>
-            <div class="actions-panel__litespeed" key-action="href">
-                <a href="/litespeed/start?action=restart">
-                    <?=__('Restart LiteSpeed')?>
+            <?php if ($is_liteSpeed_running): ?>
+                <a href="/litespeed/start?action=restart" class="btn btn-primary btn-sm">
+                    <?= __('Restart LiteSpeed') ?>
                 </a>
-            </div>
-            <div class="actions-panel__litespeed" key-action="href">
-                <a href="/litespeed/start?action=reattach">
-                    <?=__('Restart detached PHP processes')?>
-                </a>
-            </div>
+            <?php endif; ?>
+            <a href="/litespeed/start?action=reattach" class="btn btn-primary btn-sm">
+                <?= __('Restart detached PHP processes') ?>
+            </a>
+        <?php else: ?>
+            <a href="/litespeed/start?action=install" class="btn btn-primary btn-sm">
+                <?= __('Install LiteSpeed') ?>
+            </a>
         <?php endif; ?>
     </div>
+
     <?php if ($is_liteSpeed_installed): ?>
-        <div class="clearfix noselect l-stat__col-title l-sort">
-            LiteSpeed Cache For WordPress Management
+        <!-- LiteSpeed Cache for WordPress Management -->
+        <h6 class="fw-bold mb-3">LiteSpeed Cache For WordPress Management</h6>
+        <div class="mb-4 d-flex flex-wrap gap-2">
+            <a href="/list/litespeed-cache" class="btn btn-primary btn-sm">
+                <?= __('Manage LSCache for WP Installations') ?>
+            </a>
+            <a href="/list/litespeed-version" class="btn btn-primary btn-sm">
+                <?= __('Latest Version: ') . $latest_version ?>
+            </a>
         </div>
-        <div class="actions-panel clearfix">
-            <div class="actions-panel__litespeed" key-action="href">
-                <a href="/list/litespeed-cache">
-                    <?= __('Set cache locations') ?>
+
+        <!-- Switch between Apache and LiteSpeed -->
+        <h6 class="fw-bold mb-3">Switch between Apache and LiteSpeed</h6>
+        <div class="mb-4">
+            <?php if (!$is_liteSpeed_running): ?>
+                <a href="/litespeed/start?action=litespeed" class="btn btn-danger btn-sm">
+                    <?= __('Switch to LiteSpeed') ?>
                 </a>
-            </div>
-        </div>
-        <div class="clearfix noselect l-stat__col-title l-sort">
-            Switch between Apache and LiteSpeed
-        </div>
-        <div class="actions-panel clearfix">
-            <div class="actions-panel__litespeed" key-action="href">
-                <?php if (!$is_liteSpeed_running): ?>
-                    <a href="/litespeed/start?action=litespeed">
-                        <?= __('Switch to LiteSpeed') ?>
-                    </a>
-                <?php elseif (!$is_apache_running): ?>
-                    <a href="/litespeed/start?action=apache">
-                        <?= __('Switch to Apache') ?>
-                    </a>
-                <?php endif; ?>
-            </div>
+            <?php else: ?>
+                <a href="/litespeed/start?action=apache" class="btn btn-danger btn-sm">
+                    <?= __('Switch to Apache') ?>
+                </a>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 
-    <?php echo $test; ?>
+    <?= $test; ?>
+</div>
+
 </div>

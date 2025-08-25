@@ -1,39 +1,24 @@
 <?php
 
-// Load Phinx library
-require 'phinx/src/Phinx/Console/PhinxApplication.php';
-require 'phinx/src/Phinx/Console/PhinxCommand.php';
-require 'phinx/src/Phinx/Db/Adapter/MysqlAdapter.php';
-require 'phinx/src/Phinx/Db/Adapter/AdapterInterface.php';
-require 'phinx/src/Phinx/Db/Table.php';
-require 'phinx/src/Phinx/Db/Connection.php';
-require 'phinx/src/Phinx/Migration/Manager.php';
-require 'phinx/src/Phinx/Migration/AbstractMigration.php';
-require 'phinx/src/Phinx/Exception/PhinxException.php';
+require_once __DIR__ . '/db/Database.php';
 
-// Database configuration
-$config = [
+$db = new Database(__DIR__ . '/conf/.mysql.localhost');
+
+return [
     'paths' => [
-        'migrations' => 'db/migrations', // The directory where migrations will be stored
-        'seeds' => 'db/seeds' // The directory where seeds will be stored
+        'migrations' => '/usr/local/vesta/db/migrations',
+        'seeds' => '/usr/local/vesta/db/seeds',
     ],
     'environments' => [
         'default_database' => 'development',
         'development' => [
             'adapter' => 'mysql',
-            'host' => 'localhost',
-            'name' => 'hchq',
-            'user' => 'root',
-            'pass' => '',
-            'port' => '3306',
-            'charset' => 'utf8',
-        ]
-    ]
+            'host'    => $db->getHost(),
+            'name'    => $db->getDbName(),
+            'user'    => $db->getUser(),
+            'pass'    => $db->getPassword(),
+            'port'    => $db->getPort(),
+            'charset' => $db->getCharset(),
+        ],
+    ],
 ];
-
-// Initialize Phinx
-use Phinx\Console\PhinxApplication;
-
-$application = new PhinxApplication();
-$application->setConfiguration($config);
-$application->run();

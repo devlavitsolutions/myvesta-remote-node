@@ -2230,6 +2230,8 @@ body.mobile .l-icon-to-top, body.mobile .l-icon-shortcuts {
     padding-top: 20px;
 }
 
+.form-check input[type=checkbox],
+.table input[type=checkbox],
 .data input[type=checkbox] {
     display: inline;
     cursor: pointer;
@@ -3433,6 +3435,7 @@ b, strong {
   padding: 15px 15px 15px 20px;
   margin-bottom: 0;
   margin-top: 0 !important;
+  position: relative;
 }
 .l-content .l-center .l-stat .l-stat__col a .l-stat__col-title:after {
   font-family: 'Font Awesome 5 Free';
@@ -3442,7 +3445,7 @@ b, strong {
   font-size: 10px;
   color: #5c798f;
   margin-top: 8px;
-  margin-right: 26px;
+  margin-right: 20px;
 }
 .l-content .l-center .l-stat .l-stat__col a .l-stat__col-title:before {
   font-family: 'Font Awesome 5 Free';
@@ -3453,7 +3456,7 @@ b, strong {
 }
 
 .l-content .l-center .l-stat .l-stat__col--active a .l-stat__col-title:after {
-    margin-right: 26px;
+    margin-right: 20px;
 }
 
 .l-content .l-center .l-stat .l-stat__col a ul {
@@ -4186,9 +4189,9 @@ b, strong {
 .l-stat__col span {
     padding: 4px 0;
     font-size: 15px;
-    position: fixed;
     display: inline-block;
-    left: 159px;
+    position: absolute;
+    right: 8px;
 }
 .l-sort__create-btn2 {
     background-image: url("/images/sprite.png?1446554103");
@@ -4278,7 +4281,7 @@ div.ui-dialog + div div{
 .actions-panel__litespeed {
     background-color: #dee5e8;
     border: none;
-    color: white;
+    color: gray;
     padding: 15px 32px;
     text-align: center;
     text-decoration: none;
@@ -4307,3 +4310,36 @@ div.ui-dialog + div div{
 .table-data td:first-child {
     font-weight: bold;
 }
+
+.badge {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 50%;
+}
+
+.bg-primary {
+    background-color: #007bff;
+}
+
+.bg-success {
+    background-color: #28a745;
+}
+
+.bg-secondary {
+    background-color: #6c757d;
+}
+
+.bg-danger {
+    background-color: #dc3545;
+}
+
+.spacer-sm { margin-bottom: 12px; }
+
+.spacer-md { margin-bottom: 24px; }

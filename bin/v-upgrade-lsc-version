@@ -1,0 +1,101 @@
+#!/bin/bash
+# upgrade_lsc.sh
+#
+# Forces upgrade of LiteSpeed Cache plugin for all WordPress sites
+# currently at one of the given "from_versions" to the "upgrade_to" version.
+#
+# Usage:
+#   sudo ./upgrade_lsc.sh --upgrade-to 5.7 --from-versions 5.4 5.5 5.6
+#
+
+WP_CLI_BIN="/usr/local/bin/wp"
+WEB_ROOT="/home"
+PLUGIN_SLUG="litespeed-cache"
+
+UPGRADE_TO=""
+FROM_VERSIONS=()
+
+# --- Parse args ---
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --upgrade-to)
+            UPGRADE_TO="$2"
+            shift 2
+            ;;
+        --from-versions)
+            shift
+            while [[ $# -gt 0 && $1 != --* ]]; do
+                FROM_VERSIONS+=("$1")
+                shift
+            done
+            ;;
+        *)
+            echo "[ERROR] Unknown option $1"
+            exit 2
+            ;;
+    esac
+done
+
+if [ -z "$UPGRADE_TO" ] || [ ${#FROM_VERSIONS[@]} -eq 0 ]; then
+    echo "Usage: $0 --upgrade-to X.Y.Z --from-versions A.B [C.D ...]"
+    exit 1
+fi
+
+echo "[INFO] Will upgrade LSCache from {${FROM_VERSIONS[*]}} to $UPGRADE_TO"
+
+# --- Ensure WP-CLI exists ---
+if [ ! -x "$WP_CLI_BIN" ]; then
+    echo "[INFO] Installing WP-CLI..."
+    curl -s -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+    chmod +x wp-cli.phar
+    mv wp-cli.phar $WP_CLI_BIN
+fi
+
+# --- Scan all domains ---
+DOMAINS=$(find "$WEB_ROOT" -maxdepth 4 -type d -path "*/web/*/public_html")
+
+for WP_PATH in $DOMAINS; do
+    domain=$(basename "$(dirname "$WP_PATH")")
+
+    echo "=== Processing $domain ($WP_PATH) ==="
+
+    if [ ! -f "$WP_PATH/wp-includes/version.php" ]; then
+        echo "[WARN] $domain does not appear to have WordPress installed"
+        continue
+    fi
+
+    OWNER=$(stat -c "%U" "$WP_PATH")
+
+    if sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin is-installed "$PLUGIN_SLUG" >/dev/null 2>&1; then
+        CURRENT_VER=$(sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin get "$PLUGIN_SLUG" --field=version 2>/dev/null)
+
+        echo "[INFO] LSCache installed (version $CURRENT_VER) for $domain"
+
+        MATCH=0
+        for fv in "${FROM_VERSIONS[@]}"; do
+            if [ "$CURRENT_VER" == "$fv" ]; then
+                MATCH=1
+                break
+            fi
+        done
+
+        if [ $MATCH -eq 1 ]; then
+            echo "[INFO] Version matches one of the 'from' list. Upgrading to $UPGRADE_TO..."
+            sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin install "$PLUGIN_SLUG" --version="$UPGRADE_TO" --force --activate
+        else
+            echo "[SKIP] Current version ($CURRENT_VER) not in from_versions list"
+        fi
+    else
+        echo "[SKIP] LSCache not installed for $domain"
+    fi
+
+    # Final check
+    if sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin is-active "$PLUGIN_SLUG" >/dev/null 2>&1; then
+        echo "[OK] LSCache is active for $domain"
+    else
+        echo "[ERROR] LSCache not active for $domain"
+    fi
+done
+
+echo "[DONE] Upgrade process finished."
+exit 0

@@ -170,7 +170,7 @@ echo "Password: $password"
 echo ""
 echo "================================================================="
 
-chown -R $user:$user $WORKINGDIR
+# chown -R $user:$user $WORKINGDIR
 
 #----------------------------------------------------------#
 #                       Vesta                              #

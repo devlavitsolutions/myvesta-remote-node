@@ -1,0 +1,30 @@
+#!/bin/bash
+
+output="["
+first=true
+
+for user_dir in /home/*/web/; do
+    [ -d "$user_dir" ] || continue  # Skip if not a directory
+
+    for domain_dir in "$user_dir"*/; do
+        domain=$(basename "$domain_dir")
+        site_root="${domain_dir}public_html"
+
+        if [[ -f "$site_root/wp-config.php" || -d "$site_root/wp-includes" ]]; then
+            wp=true
+        else
+            wp=false
+        fi
+
+        if [ "$first" = true ]; then
+            first=false
+        else
+            output+=","
+        fi
+
+        output+="{\"domain\":\"$domain\",\"wordpress\":$wp}"
+    done
+done
+
+output+="]"
+echo "$output"

@@ -1,0 +1,131 @@
+<div class="l-center">
+    <div class="container py-4">
+
+    <h2 class="mb-4">Manage All LiteSpeed Cache for WordPress Installations</h2>
+
+    <?php if (!empty($flash_success)): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <?= htmlspecialchars($flash_success) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
+    <form method="POST" id="domainsForm" class="mb-4">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+
+        <div class="mb-3">
+            <button type="submit" name="action" value="scan" class="btn btn-primary me-2">Scan</button>
+        </div>
+
+        <div class="mb-3">
+            <button type="submit" name="action" value="unflag_all" class="btn btn-danger me-2">Unflag All</button>
+            <button type="submit" name="action" value="enable_all" class="btn btn-success me-2">Mass Enable All</button>
+            <button type="submit" name="action" value="disable_all" class="btn btn-danger">Mass Disable All</button>
+        </div>
+
+        <div class="mb-3">
+            With Selected:
+            <button type="submit" name="action" value="enable" class="btn btn-sm btn-outline-success ms-2">Enable</button>
+            <button type="submit" name="action" value="disable" class="btn btn-sm btn-outline-danger ms-1">Disable</button>
+            <button type="submit" name="action" value="flag" class="btn btn-sm btn-outline-success ms-1">Flag</button>
+            <button type="submit" name="action" value="unflag" class="btn btn-sm btn-outline-danger ms-1">Unflag</button>
+        </div>
+
+        <?php
+            // Count badge stats
+            $wpCount = $cachedCount = $flaggedTrueCount = 0;
+            foreach ($v_domains as $domain) {
+                if ($domain['hasWordPress']) $wpCount++;
+                if ($domain['isCacheEnabled']) $cachedCount++;
+                if ($domain['isFlagged']) $flaggedTrueCount++;
+            }
+        ?>
+
+        <table id="myTable" class="table table-striped table-bordered table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th><input type="checkbox" id="selectAll"></th>
+                    <th>
+                        Discovered WP Installations:
+                        <span class="badge bg-primary"><?= $wpCount ?></span>
+                        |
+                        <span class="badge bg-success"><?= $cachedCount ?></span>
+                        <span class="badge bg-danger">0</span>
+                    </th>
+                    <th>Has WP Installed</th>
+                    <th>Cached</th>
+                    <th>
+                        Flagged
+                        <span class="badge bg-primary"><?= $flaggedTrueCount ?></span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($v_domains as $domain): ?>
+                <tr>
+                    <td>
+                        <?php if (!empty($domain['hasWordPress'])): ?>
+                        <div class="form-check">
+                            <input type="checkbox" class="row-check form-check-input" name="selected[]" value="<?= (int)$domain['id'] ?>">
+                        </div>
+                        <?php endif; ?>
+                    </td>
+                    <td><?= htmlspecialchars($domain['name']) ?></td>
+                    <td>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" disabled <?= !empty($domain['hasWordPress']) ? 'checked' : '' ?>>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" disabled <?= $domain['isCacheEnabled'] ? 'checked' : '' ?>>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" disabled <?= $domain['isFlagged'] ? 'checked' : '' ?>>
+                        </div>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+                </tbody>
+
+        </table>
+    </form>
+</div>
+
+<!-- DataTable and checkbox handling -->
+<script>
+$(document).ready(function () {
+    $.noConflict();
+
+    // Initialize DataTable with sorting disabled on first column
+    $('#myTable').DataTable({
+        columnDefs: [
+            { orderable: false, targets: [0] }
+        ],
+        paging: true,
+        searching: true,
+        order: [[1, 'asc']],
+    });
+
+    // "Select All" checkbox logic
+    $('#selectAll').on('change', function () {
+        const isChecked = $(this).is(':checked');
+        $('#myTable tbody input.row-check').each(function () {
+            if ($(this).closest('tr').is(':visible')) {
+                $(this).prop('checked', isChecked);
+            }
+        });
+    });
+
+    // Auto-update "Select All" when individual boxes change
+    $('#myTable tbody').on('change', '.row-check', function () {
+        const totalVisible = $('#myTable tbody input.row-check:visible').length;
+        const checkedVisible = $('#myTable tbody input.row-check:visible:checked').length;
+        $('#selectAll').prop('checked', totalVisible === checkedVisible);
+    });
+});
+</script>
+
+</div>

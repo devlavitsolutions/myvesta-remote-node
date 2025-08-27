@@ -1,0 +1,103 @@
+#!/bin/bash
+# v-install-lscache
+#
+# Installs/activates/updates the LiteSpeed Cache plugin for WordPress domains.
+#
+# Usage:
+#   sudo ./v-install-lscache domain1.com [domain2.com ...] [--version=1.2.3]
+#
+# Example:
+#   sudo ./v-install-lscache example.com site2.com --version=5.7
+#   sudo ./v-install-lscache example.com site2.com   # installs latest or updates if outdated
+#
+
+WP_CLI_BIN="/usr/local/bin/wp"
+WEB_ROOT="/home"
+PLUGIN_SLUG="litespeed-cache"
+
+# --- Parse args ---
+VERSION=""
+DOMAINS=()
+
+for arg in "$@"; do
+    case "$arg" in
+        --version=*)
+            VERSION="${arg#*=}"
+            ;;
+        *)
+            DOMAINS+=("$arg")
+            ;;
+    esac
+done
+
+if [ ${#DOMAINS[@]} -eq 0 ]; then
+    echo "Usage: v-install-lscache domain1.com [domain2.com ...] [--version=X.Y.Z]"
+    exit 1
+fi
+
+# --- Ensure WP-CLI exists ---
+if [ ! -x "$WP_CLI_BIN" ]; then
+    echo "[INFO] Installing WP-CLI..."
+    curl -s -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+    chmod +x wp-cli.phar
+    mv wp-cli.phar $WP_CLI_BIN
+fi
+
+# --- Process each domain ---
+for domain in "${DOMAINS[@]}"; do
+    echo "=== Processing $domain ==="
+
+    WP_PATH=$(find "$WEB_ROOT" -maxdepth 4 -type d -path "*/web/$domain/public_html" 2>/dev/null | head -n 1)
+    if [ -z "$WP_PATH" ]; then
+        echo "[WARN] No directory found for $domain"
+        continue
+    fi
+
+    if [ ! -f "$WP_PATH/wp-includes/version.php" ]; then
+        echo "[WARN] $domain does not appear to have WordPress installed"
+        continue
+    fi
+
+    OWNER=$(stat -c "%U" "$WP_PATH")
+
+    # Check if plugin is installed
+    if sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin is-installed "$PLUGIN_SLUG" >/dev/null 2>&1; then
+        CURRENT_VER=$(sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin get "$PLUGIN_SLUG" --field=version 2>/dev/null)
+        echo "[INFO] LSCache installed (version $CURRENT_VER) for $domain."
+
+        if [ -n "$VERSION" ]; then
+            if [ "$VERSION" != "$CURRENT_VER" ]; then
+                echo "[INFO] Installed version differs from requested ($VERSION). Updating..."
+                sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin install "$PLUGIN_SLUG" --version="$VERSION" --force --activate
+            else
+                echo "[INFO] Version matches requested. Activating..."
+                sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin activate "$PLUGIN_SLUG"
+            fi
+        else
+            # No version provided: check for latest
+            LATEST_VER=$(sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin search "$PLUGIN_SLUG" --field=version --per-page=1 | head -n1)
+            if [ -n "$LATEST_VER" ] && [ "$LATEST_VER" != "$CURRENT_VER" ]; then
+                echo "[INFO] Installed version ($CURRENT_VER) is outdated. Updating to latest ($LATEST_VER)..."
+                sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin install "$PLUGIN_SLUG" --version="$LATEST_VER" --force --activate
+            else
+                echo "[INFO] Plugin is up-to-date. Activating..."
+                sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin activate "$PLUGIN_SLUG"
+            fi
+        fi
+    else
+        # Not installed → install
+        echo "[INFO] LSCache not installed. Installing..."
+        if [ -n "$VERSION" ]; then
+            sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin install "$PLUGIN_SLUG" --version="$VERSION" --activate
+        else
+            sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin install "$PLUGIN_SLUG" --activate
+        fi
+    fi
+
+    # Final check
+    if sudo -u "$OWNER" $WP_CLI_BIN --path="$WP_PATH" plugin is-active "$PLUGIN_SLUG" >/dev/null 2>&1; then
+        echo "[OK] LSCache is active for $domain"
+    else
+        echo "[ERROR] LSCache failed to activate for $domain"
+    fi
+done

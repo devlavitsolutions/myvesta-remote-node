@@ -23,7 +23,7 @@ if (!$conf) {
 $dbHost = trim($conf['host'], "'");
 $dbUser = trim($conf['user'], "'");
 $dbPass = trim($conf['password'], "'");
-$dbName = trim($conf['hchq_dbname'], "'");
+$dbName = 'hchq_db';
 $dbCharset = isset($conf['hchq_charset']) ? trim($conf['hchq_charset'], "'") : 'utf8';
 $dbPort = isset($conf['hchq_port']) ? intval(trim($conf['hchq_port'], "'")) : 3306;
 

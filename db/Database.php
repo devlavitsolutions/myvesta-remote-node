@@ -94,7 +94,7 @@ class Database
     {
         // Connect either to specific database or just to the server
         if ($db_already_created) {
-            $this->mysqli = mysqli_connect('localhost', 'newuser', 'password', $this->db_name, 3306, '/var/run/mysqld/mysqld.sock');
+            $this->mysqli = mysqli_connect('localhost', 'root', $this->db_password, $this->db_name, 3306, '/var/run/mysqld/mysqld.sock');
         } else {
             $this->mysqli = mysqli_connect('localhost', 'root', $this->db_password, '', 3306, '/var/run/mysqld/mysqld.sock');
         }

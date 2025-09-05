@@ -9,6 +9,9 @@
 #                    Variable&Function                     #
 #----------------------------------------------------------#
 
+VESTA='/usr/local/vesta'
+export VESTA
+
 # Argument definition
 user=$1
 domain=$2
@@ -77,5 +80,8 @@ check_result $? "can't restart dns" > /dev/null
 #----------------------------------------------------------#
 #                       Vesta                              #
 #----------------------------------------------------------#
+
+# TODO: Extract wrapper command
+/usr/local/bin/v-add-domain-ols $domain $user
 
 exit

@@ -1,0 +1,67 @@
+#!/bin/bash
+# v-add-domain-ols <domain> <user>
+# Integrates new domain into OpenLiteSpeed properly.
+
+VH_NAME="$1"   # e.g. vtest.wprofile.com
+USER="$2"      # e.g. admin
+
+LSWS_ROOT="/usr/local/lsws"
+VHOSTS_DIR="$LSWS_ROOT/conf/vhosts/$VH_NAME"
+DOCROOT="/home/$USER/web/$VH_NAME/public_html"
+HTTPD_CONF="$LSWS_ROOT/conf/httpd_config.conf"
+
+if [ -z "$VH_NAME" ] || [ -z "$USER" ]; then
+    echo "❌ Usage: $0 <domain> <user>"
+    exit 1
+fi
+
+echo "🚀 Adding OpenLiteSpeed vhost for $VH_NAME (user=$USER)"
+
+# 1. Create vhost directory and docroot
+mkdir -p "$VHOSTS_DIR"
+mkdir -p "$DOCROOT"
+
+# 2. Create vhconf.conf
+cat > "$VHOSTS_DIR/vhconf.conf" <<EOL
+docRoot                   /home/$USER/web/$VH_NAME
+enableScript              1
+restrained                1
+
+<errorlog $VH_NAME>
+  logLevel                ERROR
+</errorlog>
+
+<accesslog $VH_NAME>
+  logFormat               "%h %l %u %t \"%r\" %>s %b"
+</accesslog>
+EOL
+
+# 3. Add <virtualHost> block if not already present
+if ! grep -q "virtualHost $VH_NAME" "$HTTPD_CONF"; then
+    cat >> "$HTTPD_CONF" <<EOL
+
+virtualHost $VH_NAME {
+  vhRoot                  $DOCROOT
+  configFile              $LSWS_ROOT/conf/vhosts/$VH_NAME/vhconf.conf
+  allowSymbolLink         1
+  enableScript            1
+  restrained              1
+}
+EOL
+    echo "✅ VirtualHost $VH_NAME added to httpd_config.conf"
+else
+    echo "⚠️ VirtualHost $VH_NAME already exists in httpd_config.conf"
+fi
+
+# 4. Add map line inside listener Default
+if ! grep -q "map $VH_NAME $VH_NAME" "$HTTPD_CONF"; then
+    # Insert just before the closing brace of listener Default
+    sed -i "/listener Default {/a \ \ map $VH_NAME $VH_NAME" "$HTTPD_CONF"
+    echo "✅ Domain mapped in listener Default"
+else
+    echo "⚠️ Domain already mapped in listener Default"
+fi
+
+# 5. Reload OLS
+systemctl reload lsws
+echo "🌱 Domain $VH_NAME integrated into OpenLiteSpeed and GUI should now show it"

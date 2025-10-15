@@ -511,8 +511,8 @@ $LANG['sr'] = array(
     'CRON_EXCLUSIONS' => 'Da bi izuzeo sve cron-job-ove unesi zvezdicu *',
     'USER_EXCLUSIONS' => 'Unesi direktorijume, po jedan u svakoj liniji. Da bi izuzeo sve direktorijume unesi zvezdicu *',
 
-    'Welcome to Vesta Control Panel'  => 'Dobrodošli u myVesta kontrolni panel',
-    'MAIL_FROM'  => 'myVesta kontrolni panel <noreply@%s>',
+    'Welcome to Vesta Control Panel'  => 'Dobrodošli u Host Control kontrolni panel',
+    'MAIL_FROM'  => 'Host Control kontrolni panel <noreply@%s>',
     'GREETINGS_GORDON_FREEMAN' => "Poštovani %s %s,\n",
     'GREETINGS' => "Poštovani,\n",
     'ACCOUNT_READY' => "Vaš hosting nalog je kreiran i spreman za korišćenje.\n\nhttps://%s/login/\nUsername: %s\nPassword: %s\n\n--\nmyVesta kontrolni panel\n",

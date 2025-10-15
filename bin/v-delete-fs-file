@@ -28,7 +28,8 @@ if [ -z $homedir ]; then
 fi
 
 # Checking destination path
-rpath=$(readlink -f "$dst_file")
+rpath=$(realpath --no-symlinks "$dst_file" 2>/dev/null)
+
 if [ -z "$(echo $rpath |egrep "^/tmp|^$homedir")" ]; then
     echo "Error: invalid destination path $dst_file"
     exit 2

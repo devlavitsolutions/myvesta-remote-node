@@ -1,0 +1,45 @@
+#!/bin/bash
+# info: print file contents
+# options: USER FILE
+# example: v-cat-fs-file admin /home/admin/web/example.com/public_html/index.html
+# This script outputs file content for download through API
+
+user=$1
+file=$2
+
+# === Validate inputs ===
+if [ -z "$user" ] || [ -z "$file" ]; then
+    echo "Error: Missing arguments. Usage: USER FILE" >&2
+    exit 1
+fi
+
+VESTA='/usr/local/vesta'
+user_dir="$VESTA/data/users/$user"
+
+if [ ! -d "$user_dir" ]; then
+    echo "Error: User $user not found." >&2
+    exit 2
+fi
+
+# Checking user homedir
+homedir=$(grep "^$user:" /etc/passwd | cut -f 6 -d :)
+if [ -z $homedir ]; then
+    echo "Error: user home directory doesn't exist"
+    exit 12
+fi
+
+# === Validate target file ===
+if [ ! -e "$file" ]; then
+    echo "Error: File not found: $file" >&2
+    exit 4
+fi
+
+if [ ! -r "$file" ]; then
+    echo "Error: File not readable: $file" >&2
+    exit 5
+fi
+
+# === Output file contents ===
+cat "$file"
+
+exit 0

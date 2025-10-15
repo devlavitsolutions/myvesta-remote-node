@@ -113,6 +113,30 @@ if (isset($_POST['user']) || isset($_POST['hash'])) {
     if(!empty($arg9)){
          $cmdquery = $cmdquery.$arg9; }
 
+    if ($cmd == "'v-put-fs-file'") {
+        // Expect uploaded file in $_FILES['file']
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            echo "Error: file upload failed\n";
+            exit(1);
+        }
+        $dest = trim($arg2, "'"); // arg2 contains escaped path like '/home/admin/...'
+        // Move uploaded file to destination
+        if (!is_dir(dirname($dest))) {
+            mkdir(dirname($dest), 0755, true);
+        }
+        if (!move_uploaded_file($_FILES['file']['tmp_name'], $dest)) {
+            echo "Error: Failed to write to {$dest}\n";
+            exit(5);
+        }
+        // ensure owner
+        // Note: arg1 is user, use chown if appropriate
+        @chown($dest, trim($arg1, "'"));
+        @chgrp($dest, trim($arg1, "'"));
+
+        echo "OK: Uploaded to {$dest}\n";
+        exit(0);
+    }
+
     // Check command
     if ($cmd == "'v-make-tmp-file'") {
         // Used in DNS Cluster
@@ -121,7 +145,6 @@ if (isset($_POST['user']) || isset($_POST['hash'])) {
         fclose($fp);
         $return_var = 0;
     } else {
-        // Run normal cmd query
         exec ($cmdquery, $output, $return_var);
     }
 

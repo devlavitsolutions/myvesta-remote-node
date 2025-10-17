@@ -19,7 +19,7 @@ if (($_SESSION['user'] == 'admin') && (!empty($_GET['user']))) {
 }
 
 // Handle "Install WordPress" form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['token'], $_POST['user'], $_POST['domain'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['token'], $_POST['user'], $_POST['domain'], $_POST['type']) && $_POST['type'] == 'wordpress') {
     // Check token
     if (!isset($_SESSION['token']) || $_POST['token'] !== $_SESSION['token']) {
         header('Location: /edit/web/');

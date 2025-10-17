@@ -14,17 +14,17 @@ if [ "$whoami" != "root" ]; then
 fi
 
 # Importing system environment
-source /etc/profile 2>>"$DEBUG_LOG"
+source /etc/profile
 
 domain=$1
 
-user=$(/usr/local/vesta/bin/v-search-domain-owner $domain 2>>"$DEBUG_LOG")
+user=$(/usr/local/vesta/bin/v-search-domain-owner $domain)
 USER=$user
 
 # Includes
-source /usr/local/vesta/func/main.sh 2>>"$DEBUG_LOG"
-source /usr/local/vesta/func/db.sh 2>>"$DEBUG_LOG"
-source /usr/local/vesta/conf/vesta.conf 2>>"$DEBUG_LOG"
+source /usr/local/vesta/func/main.sh
+source /usr/local/vesta/func/db.sh
+source /usr/local/vesta/conf/vesta.conf
 
 if [ -z "$user" ]; then
     check_result $E_NOTEXIST "domain $domain doesn't exist"
@@ -44,7 +44,7 @@ is_format_valid 'domain' 'database' 'email'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-source /usr/local/vesta/func/handle_parameters.sh 2>>"$DEBUG_LOG"
+source /usr/local/vesta/func/handle_parameters.sh
 
 if [ -z "$database" ]; then
     if [ ! -z "$MAX_DBUSER_LEN" ] && [ "$MAX_DBUSER_LEN" -ge 80 ]; then
@@ -105,7 +105,7 @@ PASSWDDB=$(openssl rand -base64 6 | tr -dc 'a-zA-Z0-9')
 PROTOCOL='https'
 
 if [ ! -f "/home/$user/conf/web/ssl.$domain.ca" ]; then
-    /usr/local/vesta/bin/v-add-letsencrypt-domain "$user" "$domain" "www.$domain" "yes" >>"$DEBUG_LOG" 2>&1
+    /usr/local/vesta/bin/v-add-letsencrypt-domain "$user" "$domain" "www.$domain" "yes"
 fi
 
 if [ ! -z "$FORCE_HTTP" ]; then
@@ -117,39 +117,39 @@ TPL_CHANGED=0
 if [ "$PROTOCOL" = "https" ]; then
     if [ -f "/usr/local/vesta/data/templates/web/nginx/force-https-firewall-wordpress.stpl" ] && [ $TPL_CHANGED -eq 0 ]; then
         TPL_CHANGED=1
-        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "force-https-firewall-wordpress" ... >>"$DEBUG_LOG" 2>&1
+        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "force-https-firewall-wordpress" ...
     fi
     if [ -f "/usr/local/vesta/data/templates/web/nginx/force-https.stpl" ] && [ $TPL_CHANGED -eq 0 ]; then
         TPL_CHANGED=1
-        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "force-https" ... >>"$DEBUG_LOG" 2>&1
+        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "force-https" ...
     fi
 else
     if [ -f "/usr/local/vesta/data/templates/web/nginx/hosting-firewall-wordpress.stpl" ] && [ $TPL_CHANGED -eq 0 ]; then
-        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "hosting-firewall-wordpress" ... >>"$DEBUG_LOG" 2>&1
+        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "hosting-firewall-wordpress" ...
     fi
 fi
 
- /usr/local/vesta/bin/v-add-database "$user" "$DBUSERSUF" "$DBUSERSUF" "$PASSWDDB" "mysql" >>"$DEBUG_LOG" 2>&1
+/usr/local/vesta/bin/v-add-database "$user" "$DBUSERSUF" "$DBUSERSUF" "$PASSWDDB" "mysql"
 
 if [ ! -f "/usr/local/bin/wp" ]; then
-    wget -nv https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -O /usr/local/bin/wp >>"$DEBUG_LOG" 2>&1
+    wget -nv https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -O /usr/local/bin/wp
     chmod +x /usr/local/bin/wp
 fi
 
 WORKINGDIR="/home/$user/web/$domain/public_html"
-rm -rf "$WORKINGDIR"/* >>"$DEBUG_LOG" 2>&1
+rm -rf "$WORKINGDIR"/*
 cd "$WORKINGDIR"
 
-sudo -H -u"$user" wp core download >>"$DEBUG_LOG" 2>&1
-sudo -H -u"$user" wp core config --dbname="$DBUSER" --dbuser="$DBUSER" --dbpass="$PASSWDDB" >>"$DEBUG_LOG" 2>&1
+sudo -H -u"$user" wp core download
+sudo -H -u"$user" wp core config --dbname="$DBUSER" --dbuser="$DBUSER" --dbpass="$PASSWDDB"
 
 password=$(LC_CTYPE=C tr -dc A-Za-z0-9_\!\@\#\$\%\^\&\*\(\)-+= < /dev/urandom | head -c 12)
 wpadmin=$(echo "$domain" | sed 's#\.#_#g')_4dm1n
 
 sudo -H -u"$user" wp core install --url="$domain" --title="$domain" --admin_user="$wpadmin" \
-    --admin_password="$password" --admin_email="$email" --path="$WORKINGDIR" >>"$DEBUG_LOG" 2>&1
+    --admin_password="$password" --admin_email="$email" --path="$WORKINGDIR"
 
-mysql -u"$DBUSER" -p"$PASSWDDB" -e "USE $DBUSER; update wp_options set option_value = '$PROTOCOL://$domain' where option_name in ('siteurl','home');" >>"$DEBUG_LOG" 2>&1
+mysql -u"$DBUSER" -p"$PASSWDDB" -e "USE $DBUSER; update wp_options set option_value = '$PROTOCOL://$domain' where option_name in ('siteurl','home');"
 
 echo "v-install-wordpress: Done."
 exit 0

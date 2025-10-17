@@ -5,6 +5,10 @@
  */
 
 $LANG['bg'] = array(
+    ' Install WordPress' => 'Инсталирай WordPress',
+    'Automatically download and install WordPress into the site root' => 'Автоматично изтегли и инсталирай WordPress в коренната директория',
+    'Install Now' => 'Инсталирай сега',
+
     'Packages'  => 'Пакети',
     'IP'  => 'IP',
     'Graphs'  => 'Графики',

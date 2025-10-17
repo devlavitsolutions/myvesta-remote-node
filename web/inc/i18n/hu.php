@@ -9,6 +9,10 @@
  */
 
 $LANG['hu'] = array(
+    ' Install WordPress' => 'WordPress telepítése',
+    'Automatically download and install WordPress into the site root' => 'WordPress automatikus letöltése és telepítése a webhely gyökérmappájába',
+    'Install Now' => 'Telepítés most',
+
     'Packages'  => 'Csomagok',
     'IP'  => 'IP címek',
     'Graphs'  => 'Grafikonok',

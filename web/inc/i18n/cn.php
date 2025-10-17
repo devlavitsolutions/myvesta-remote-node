@@ -10,6 +10,10 @@
  */
 
 $LANG['cn'] = array(
+    ' Install WordPress' => '安装 WordPress',
+    'Automatically download and install WordPress into the site root' => '自动下载并安装 WordPress 到站点根目录',
+    'Install Now' => '立即安装',
+
     'Packages' => '用户方案',
     'IP' => 'IP 地址',
     'Graphs' => '资源图表',

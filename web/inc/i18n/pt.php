@@ -5,6 +5,10 @@
  */
 
 $LANG['pt'] = array(
+    ' Install WordPress' => 'Instalar WordPress',
+    'Automatically download and install WordPress into a raiz do site automaticamente',
+    'Install Now' => 'Instalar agora',
+
     'Packages'  => 'Pacotes',
     'IP'  => 'IP',
     'Graphs'  => 'Gráficos',

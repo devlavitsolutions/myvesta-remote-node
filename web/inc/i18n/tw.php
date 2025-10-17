@@ -6,6 +6,9 @@
  * Clark Chen (clark@clark-chen.com)
  */
 $LANG['tw'] = array(
+    ' Install WordPress' => '安裝 WordPress',
+    'Automatically download and install WordPress into 網站根目錄',
+    'Install Now' => '立即安裝',
 
     'Packages'  => '方案設定',
     'IP'  => 'IP 管理',

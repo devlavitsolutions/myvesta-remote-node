@@ -7,6 +7,10 @@
  */
 
 $LANG['nl'] = array(
+    ' Install WordPress' => 'WordPress installeren',
+    'Automatically download and install WordPress into the site root' => 'WordPress automatisch downloaden en installeren in de hoofdmap van de site',
+    'Install Now' => 'Nu installeren',
+
     'Packages'  => 'Pakketten',
     'IP'  => 'IP',
     'Graphs'  => 'Grafieken',

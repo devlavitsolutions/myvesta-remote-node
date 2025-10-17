@@ -7,6 +7,10 @@
  */
 
 $LANG['tr'] = array(
+    ' Install WordPress' => 'WordPress Kur',
+    'Automatically download and install WordPress into the site root' => 'WordPress’i otomatik olarak indir ve site kök dizinine kur',
+    'Install Now' => 'Şimdi kur',
+
     'Packages'  => 'Paketler',
     'IP'  => 'IP',
     'Graphs'  => 'Grafikler',

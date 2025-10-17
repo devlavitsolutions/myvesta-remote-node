@@ -7,6 +7,9 @@
  */
 
 $LANG['th'] = array(
+    ' Install WordPress' => 'ติดตั้ง WordPress',
+    'Automatically download and install WordPress into the site root' => 'ดาวน์โหลดและติดตั้ง WordPress อัตโนมัติในโฟลเดอร์หลักของเว็บไซต์',
+    'Install Now' => 'ติดตั้งเดี๋ยวนี้',
 
     'Packages'  => 'แพ็กเกจ',
     'IP'  => 'IP',

@@ -6,6 +6,10 @@
  */
 
 $LANG['pl'] = array(
+    ' Install WordPress' => 'Zainstaluj WordPress',
+    'Automatically download and install WordPress into the site root' => 'Automatycznie pobierz i zainstaluj WordPress w katalogu głównym strony',
+    'Install Now' => 'Zainstaluj teraz',
+
     'Packages'  => 'Pakiety',
     'IP'  => 'IP',
     'Graphs'  => 'Wykresy',

@@ -6,7 +6,8 @@ first=true
 for user_dir in /home/*/web/; do
     [ -d "$user_dir" ] || continue  # Skip if not a directory
 
-    for domain_dir in "$user_dir"*/; do
+    for domain_dir in ${user_dir}*/; do
+        [ -d "$domain_dir" ] || continue  # skip if not a directory
         domain=$(basename "$domain_dir")
         site_root="${domain_dir}public_html"
 

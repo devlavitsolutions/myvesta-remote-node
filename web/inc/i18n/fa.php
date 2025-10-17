@@ -7,6 +7,10 @@
  * َAnd Ham3D (hamed334@gmail.com)
  */
 $LANG['fa'] = array(
+    ' Install WordPress' => 'نصب وردپرس',
+    'Automatically download and install WordPress into the site root' => 'دانلود و نصب خودکار وردپرس در ریشه سایت',
+    'Install Now' => 'هم‌اکنون نصب کن',
+
     'Packages' => 'بسته ها',
     'IP' => 'آی پی',
     'Graphs' => 'نمودار ها',

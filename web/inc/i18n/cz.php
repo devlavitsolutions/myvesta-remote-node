@@ -6,6 +6,10 @@
  */
 
 $LANG['cz'] = array(
+    ' Install WordPress' => 'Nainstalovat WordPress',
+    'Automatically download and install WordPress into the site root' => 'Automaticky stáhnout a nainstalovat WordPress do kořenového adresáře',
+    'Install Now' => 'Nainstalovat nyní',
+
     'Packages'  => 'Balíčky',
     'IP'  => 'IP',
     'Graphs'  => 'Grafy',

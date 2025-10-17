@@ -5,6 +5,10 @@
  */
 
 $LANG['ka'] = array(
+    ' Install WordPress' => 'დაუდე WordPress',
+    'Automatically download and install WordPress into the site root' => 'ავტომატურად გადმოწერე და დამონტაჟე WordPress საიტის საქაღალდეში',
+    'Install Now' => 'დაუდე ახლა',
+
     'Packages'  => 'პაკეტები',
     'IP'  => 'IP',
     'Graphs'  => 'გრაფები',

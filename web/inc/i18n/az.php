@@ -5,6 +5,10 @@
 
  */
 $LANG['az'] = array(
+    ' Install WordPress' => 'WordPress quraşdır',
+    'Automatically download and install WordPress into the site root' => 'WordPress-i avtomatik olaraq yüklə və saytın kök qovluğuna quraşdır',
+    'Install Now' => 'İndi quraşdır',
+
     'Packages'  => 'Paketlər',
     'IP'  => 'IP',
     'Graphs'  => 'Qrafiklər',

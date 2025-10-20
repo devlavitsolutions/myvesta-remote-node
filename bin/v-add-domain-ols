@@ -1,29 +1,48 @@
 #!/bin/bash
 # v-add-domain-ols <domain> <user>
-# Integrates new domain into OpenLiteSpeed properly.
+# Integrates a new domain into OpenLiteSpeed (MyVesta environment),
+# mapping it to both Default (HTTP) and DefaultSSL (HTTPS) listeners.
 
-VH_NAME="$1"   # e.g. vtest.wprofile.com
-USER="$2"      # e.g. admin
+set -euo pipefail
+IFS=$'\n\t'
 
+# --- CONFIG ---
 LSWS_ROOT="/usr/local/lsws"
-VHOSTS_DIR="$LSWS_ROOT/conf/vhosts/$VH_NAME"
-DOCROOT="/home/$USER/web/$VH_NAME/public_html"
-HTTPD_CONF="$LSWS_ROOT/conf/httpd_config.conf"
+CONF_DIR="$LSWS_ROOT/conf"
+HTTPD_CONF="$CONF_DIR/httpd_config.conf"
+LISTENERS=("Default" "DefaultSSL")
 
-if [ -z "$VH_NAME" ] || [ -z "$USER" ]; then
-    echo "❌ Usage: $0 <domain> <user>"
-    exit 1
+# --- INPUT ---
+VH_NAME="${1:-}"
+USER_NAME="${2:-}"
+
+# --- CHECK INPUT ---
+if [[ -z "$VH_NAME" || -z "$USER_NAME" ]]; then
+  echo "Usage: $0 <domain> <user>"
+  exit 1
 fi
 
-echo "🚀 Adding OpenLiteSpeed vhost for $VH_NAME (user=$USER)"
+# --- PATHS ---
+VHOSTS_DIR="$CONF_DIR/vhosts/$VH_NAME"
+VH_CONF="$VHOSTS_DIR/vhconf.conf"
+VH_ROOT="/home/$USER_NAME/web/$VH_NAME"
+DOCROOT="$VH_ROOT/public_html"
 
-# 1. Create vhost directory and docroot
-mkdir -p "$VHOSTS_DIR"
-mkdir -p "$DOCROOT"
+echo "Adding OpenLiteSpeed vhost for '$VH_NAME' (user: $USER_NAME)"
 
-# 2. Create vhconf.conf
-cat > "$VHOSTS_DIR/vhconf.conf" <<EOL
-docRoot                   /home/$USER/web/$VH_NAME
+# --- CREATE DIRECTORIES ---
+for dir in "$VHOSTS_DIR" "$DOCROOT"; do
+  if [[ ! -d "$dir" ]]; then
+    mkdir -p "$dir"
+    echo "Created directory: $dir"
+  else
+    echo "Directory already exists: $dir"
+  fi
+done
+
+# --- GENERATE VH CONFIG ---
+cat > "$VH_CONF" <<EOF
+docRoot                   $DOCROOT
 enableScript              1
 restrained                1
 
@@ -34,34 +53,46 @@ restrained                1
 <accesslog $VH_NAME>
   logFormat               "%h %l %u %t \"%r\" %>s %b"
 </accesslog>
-EOL
+EOF
+echo "Created virtual host config: $VH_CONF"
 
-# 3. Add <virtualHost> block if not already present
+# --- ADD <virtualHost> TO HTTPD_CONF ---
 if ! grep -q "virtualHost $VH_NAME" "$HTTPD_CONF"; then
-    cat >> "$HTTPD_CONF" <<EOL
+  cat >> "$HTTPD_CONF" <<EOF
 
 virtualHost $VH_NAME {
-  vhRoot                  $DOCROOT
-  configFile              $LSWS_ROOT/conf/vhosts/$VH_NAME/vhconf.conf
+  vhRoot                  "$VH_ROOT"
+  configFile              "$VH_CONF"
   allowSymbolLink         1
   enableScript            1
   restrained              1
 }
-EOL
-    echo "✅ VirtualHost $VH_NAME added to httpd_config.conf"
+EOF
+  echo "Added virtualHost block for '$VH_NAME'"
 else
-    echo "⚠️ VirtualHost $VH_NAME already exists in httpd_config.conf"
+  echo "VirtualHost '$VH_NAME' already exists in httpd_config.conf"
 fi
 
-# 4. Add map line inside listener Default
-if ! grep -q "map $VH_NAME $VH_NAME" "$HTTPD_CONF"; then
-    # Insert just before the closing brace of listener Default
-    sed -i "/listener Default {/a \ \ map $VH_NAME $VH_NAME" "$HTTPD_CONF"
-    echo "✅ Domain mapped in listener Default"
-else
-    echo "⚠️ Domain already mapped in listener Default"
-fi
+# --- MAP DOMAIN TO LISTENERS ---
+for LISTENER_NAME in "${LISTENERS[@]}"; do
+  if grep -q "listener $LISTENER_NAME" "$HTTPD_CONF"; then
+    if ! grep -q "map $VH_NAME $VH_NAME" "$HTTPD_CONF" | grep -q "$LISTENER_NAME"; then
+      sed -i "/listener $LISTENER_NAME {/a \ \ map $VH_NAME $VH_NAME" "$HTTPD_CONF"
+      echo "Mapped '$VH_NAME' to listener '$LISTENER_NAME'"
+    else
+      echo "Domain '$VH_NAME' already mapped in listener '$LISTENER_NAME'"
+    fi
+  else
+    echo "Listener '$LISTENER_NAME' not found in httpd_config.conf, skipping."
+  fi
+done
 
-# 5. Reload OLS
+# --- PERMISSIONS ---
+chmod -R o+rX "$DOCROOT"
+echo "Adjusted permissions for $DOCROOT (world-readable)"
+
+# --- RELOAD OLS ---
+echo "Reloading OpenLiteSpeed..."
 systemctl reload lsws
-echo "🌱 Domain $VH_NAME integrated into OpenLiteSpeed and GUI should now show it"
+echo "Domain '$VH_NAME' integrated successfully for both HTTP and HTTPS."
+echo "Check OLS WebAdmin GUI to confirm both listeners."

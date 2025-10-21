@@ -6,10 +6,6 @@
  */
 
 $LANG['ua'] = array(
-    ' Install WordPress' => 'Встановити WordPress',
-    'Automatically download and install WordPress into the site root' => 'Автоматично завантажити та встановити WordPress у кореневий каталог сайту',
-    'Install Now' => 'Встановити зараз',
-
     'Packages' => 'Пакети',
     'IP' => 'IP',
     'Graphs' => 'Графіки',

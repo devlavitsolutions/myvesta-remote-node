@@ -6,10 +6,6 @@
  */
 
 $LANG['ar'] = array(
-    ' Install WordPress' => 'تثبيت ووردبريس',
-    'Automatically download and install WordPress into the site root' => 'تحميل وتثبيت ووردبريس تلقائيًا في جذر الموقع',
-    'Install Now' => 'تثبيت الآن',
-
     'Packages'  => 'حزم الاستضافة',
     'IP'  => 'عناوين IP',
     'Graphs'  => 'رسوم بيانية',

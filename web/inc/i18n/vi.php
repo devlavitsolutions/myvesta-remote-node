@@ -8,10 +8,6 @@
  */
 
 $LANG['vi'] = array(
-    ' Install WordPress' => 'Cài đặt WordPress',
-    'Automatically download and install WordPress into the site root' => 'Tự động tải xuống và cài đặt WordPress vào thư mục gốc của site',
-    'Install Now' => 'Cài đặt ngay',
-
     'Packages'  => 'Gói hosting',
     'IP'  => 'IP',
     'Graphs'  => 'Biểu đồ',

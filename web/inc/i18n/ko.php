@@ -5,10 +5,6 @@
  */
 
 $LANG['ko'] = array(
-    ' Install WordPress' => 'WordPress 설치',
-    'Automatically download and install WordPress into the site root' => 'WordPress를 자동으로 다운로드하여 사이트 루트에 설치',
-    'Install Now' => '지금 설치',
-
     'Packages'  => '패키지',
     'IP'  => 'IP',
     'Graphs'  => '그래프',

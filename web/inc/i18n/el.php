@@ -7,10 +7,6 @@
  */
 
 $LANG['el'] = array(
-    ' Install WordPress' => 'Εγκατάσταση WordPress',
-    'Automatically download and install WordPress into the site root' => 'Αυτόματη λήψη και εγκατάσταση του WordPress στον ριζικό φάκελο',
-    'Install Now' => 'Εγκατάσταση τώρα',
-
     'Packages'  => 'Πακέτα',
     'IP'  => 'IP',
     'Graphs'  => 'Γραφήματα',

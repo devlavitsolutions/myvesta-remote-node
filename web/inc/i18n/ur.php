@@ -6,10 +6,6 @@
  */
 
 $LANG['ur'] = array(
-    ' Install WordPress' => 'ورڈپریس انسٹال کریں',
-    'Automatically download and install WordPress into the site root' => 'ورڈپریس کو خودکار طور پر ڈاؤن لوڈ اور ویب سائٹ کی جڑ میں انسٹال کریں',
-    'Install Now' => 'ابھی انسٹال کریں',
-
     'Packages'  => 'پیکیجز',
     'IP'  => 'IP',
     'Graphs'  => 'گرافس',

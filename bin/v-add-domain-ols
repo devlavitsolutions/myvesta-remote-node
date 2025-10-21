@@ -1,98 +1,122 @@
 #!/bin/bash
-# v-add-domain-ols <domain> <user>
-# Integrates a new domain into OpenLiteSpeed (MyVesta environment),
+# info: add OpenLiteSpeed virtual host for domain
+# options: USER DOMAIN
+#
+# The function integrates a user's domain into OpenLiteSpeed,
 # mapping it to both Default (HTTP) and DefaultSSL (HTTPS) listeners.
 
-set -euo pipefail
-IFS=$'\n\t'
+#----------------------------------------------------------#
+#                    Variable & Function                   #
+#----------------------------------------------------------#
 
-# --- CONFIG ---
+VESTA='/usr/local/vesta'
+export VESTA
+
+# Argument definition
+user=$1
+domain=$2
+
+# Includes
+source $VESTA/func/main.sh
+source $VESTA/conf/vesta.conf
+
+# LiteSpeed paths
 LSWS_ROOT="/usr/local/lsws"
 CONF_DIR="$LSWS_ROOT/conf"
 HTTPD_CONF="$CONF_DIR/httpd_config.conf"
 LISTENERS=("Default" "DefaultSSL")
 
-# --- INPUT ---
-VH_NAME="${1:-}"
-USER_NAME="${2:-}"
+#----------------------------------------------------------#
+#                        Checks                            #
+#----------------------------------------------------------#
 
-# --- CHECK INPUT ---
-if [[ -z "$VH_NAME" || -z "$USER_NAME" ]]; then
-  echo "Usage: $0 <domain> <user>"
-  exit 1
-fi
+check_args '2' "$#" 'USER DOMAIN'
+is_format_valid 'user' 'domain'
+is_object_valid 'user' 'USER' "$user"
+is_object_unsuspended 'user' 'USER' "$user"
 
-# --- PATHS ---
-VHOSTS_DIR="$CONF_DIR/vhosts/$VH_NAME"
+#----------------------------------------------------------#
+#                        Action                            #
+#----------------------------------------------------------#
+
+# Paths
+VHOSTS_DIR="$CONF_DIR/vhosts/$domain"
 VH_CONF="$VHOSTS_DIR/vhconf.conf"
-VH_ROOT="/home/$USER_NAME/web/$VH_NAME"
+VH_ROOT="/home/$user/web/$domain"
 DOCROOT="$VH_ROOT/public_html"
 
-echo "Adding OpenLiteSpeed vhost for '$VH_NAME' (user: $USER_NAME)"
+echo "Integrating domain '$domain' for user '$user' into OpenLiteSpeed..."
 
-# --- CREATE DIRECTORIES ---
+# Create directories
 for dir in "$VHOSTS_DIR" "$DOCROOT"; do
-  if [[ ! -d "$dir" ]]; then
-    mkdir -p "$dir"
-    echo "Created directory: $dir"
-  else
-    echo "Directory already exists: $dir"
-  fi
+    if [ ! -d "$dir" ]; then
+        mkdir -p "$dir"
+        echo "Created directory: $dir"
+    else
+        echo "Directory already exists: $dir"
+    fi
 done
 
-# --- GENERATE VH CONFIG ---
+# Create virtual host config
 cat > "$VH_CONF" <<EOF
 docRoot                   $DOCROOT
 enableScript              1
 restrained                1
 
-<errorlog $VH_NAME>
+<errorlog $domain>
   logLevel                ERROR
 </errorlog>
 
-<accesslog $VH_NAME>
+<accesslog $domain>
   logFormat               "%h %l %u %t \"%r\" %>s %b"
 </accesslog>
 EOF
 echo "Created virtual host config: $VH_CONF"
 
-# --- ADD <virtualHost> TO HTTPD_CONF ---
-if ! grep -q "virtualHost $VH_NAME" "$HTTPD_CONF"; then
-  cat >> "$HTTPD_CONF" <<EOF
+# Add virtualHost section if not present
+if ! grep -q "virtualHost $domain" "$HTTPD_CONF"; then
+    cat >> "$HTTPD_CONF" <<EOF
 
-virtualHost $VH_NAME {
-  vhRoot                  "$VH_ROOT"
-  configFile              "$VH_CONF"
+virtualHost $domain {
+  vhRoot                  $VH_ROOT
+  configFile              $VH_CONF
   allowSymbolLink         1
   enableScript            1
   restrained              1
 }
 EOF
-  echo "Added virtualHost block for '$VH_NAME'"
+    echo "Added virtualHost block for '$domain'"
 else
-  echo "VirtualHost '$VH_NAME' already exists in httpd_config.conf"
+    echo "VirtualHost '$domain' already exists in httpd_config.conf"
 fi
 
-# --- MAP DOMAIN TO LISTENERS ---
+# Map domain to Default and DefaultSSL listeners
 for LISTENER_NAME in "${LISTENERS[@]}"; do
-  if grep -q "listener $LISTENER_NAME" "$HTTPD_CONF"; then
-    if ! grep -q "map $VH_NAME $VH_NAME" "$HTTPD_CONF" | grep -q "$LISTENER_NAME"; then
-      sed -i "/listener $LISTENER_NAME {/a \ \ map $VH_NAME $VH_NAME" "$HTTPD_CONF"
-      echo "Mapped '$VH_NAME' to listener '$LISTENER_NAME'"
+    if grep -q "listener $LISTENER_NAME" "$HTTPD_CONF"; then
+        # Ensure domain not already mapped
+        if ! awk "/listener $LISTENER_NAME/,/}/" "$HTTPD_CONF" | grep -q "map $domain $domain"; then
+            sed -i "/listener $LISTENER_NAME {/a \ \ map $domain $domain" "$HTTPD_CONF"
+            echo "Mapped '$domain' to listener '$LISTENER_NAME'"
+        else
+            echo "Domain '$domain' already mapped in listener '$LISTENER_NAME'"
+        fi
     else
-      echo "Domain '$VH_NAME' already mapped in listener '$LISTENER_NAME'"
+        echo "Listener '$LISTENER_NAME' not found in httpd_config.conf, skipping."
     fi
-  else
-    echo "Listener '$LISTENER_NAME' not found in httpd_config.conf, skipping."
-  fi
 done
 
-# --- PERMISSIONS ---
+# Permissions
 chmod -R o+rX "$DOCROOT"
 echo "Adjusted permissions for $DOCROOT (world-readable)"
 
-# --- RELOAD OLS ---
+# Reload OLS
 echo "Reloading OpenLiteSpeed..."
 systemctl reload lsws
-echo "Domain '$VH_NAME' integrated successfully for both HTTP and HTTPS."
-echo "Check OLS WebAdmin GUI to confirm both listeners."
+check_result $? "OpenLiteSpeed reload failed"
+
+echo "✅ Domain '$domain' integrated successfully for both HTTP and HTTPS."
+
+#----------------------------------------------------------#
+#                         Exit                             #
+#----------------------------------------------------------#
+exit 0

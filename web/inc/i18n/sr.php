@@ -5,10 +5,6 @@
  *
  */
 $LANG['sr'] = array(
-    ' Install WordPress' => 'Инсталирај WordPress',
-    'Automatically download and install WordPress into the site root' => 'Аутоматски преузми и инсталирај WordPress у главни фолдер',
-    'Install Now' => 'Инсталирај сада',
-
     'Packages'  => 'Paketi',
     'IP'  => 'IP',
     'Graphs'  => 'Grafikoni',

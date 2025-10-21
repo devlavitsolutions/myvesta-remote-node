@@ -7,10 +7,6 @@
  */
 
 $LANG['ro'] = array(
-    ' Install WordPress' => 'Instalează WordPress',
-    'Automatically download and install WordPress into the site root' => 'Descarcă și instalează automat WordPress în directorul rădăcină',
-    'Install Now' => 'Instalează acum',
-
     'Packages' => 'Pachete',
     'IP' => 'IP',
     'Graphs' => 'Grafice',

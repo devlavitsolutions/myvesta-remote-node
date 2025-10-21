@@ -5,10 +5,6 @@
  */
 
 $LANG['se'] = array(
-    ' Install WordPress' => 'Installera WordPress',
-    'Automatically download and install WordPress into the site root' => 'Ladda ner och installera WordPress automatiskt i webbplatsens rotmapp',
-    'Install Now' => 'Installera nu',
-
     'Packages'  => 'Webbhotell-paket',
     'IP'  => 'IP',
     'Graphs'  => 'Grafer',

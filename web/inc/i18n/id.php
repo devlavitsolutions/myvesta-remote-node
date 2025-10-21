@@ -6,10 +6,6 @@
  */
 
 $LANG['id'] = array(
-    ' Install WordPress' => 'Pasang WordPress',
-    'Automatically download and install WordPress into the site root' => 'Secara otomatis unduh dan pasang WordPress ke root situs',
-    'Install Now' => 'Pasang sekarang',
-
     'Packages'  => 'Paket',
     'IP'  => 'IP',
     'Graphs'  => 'Grafik',

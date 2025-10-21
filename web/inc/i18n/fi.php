@@ -7,10 +7,6 @@
 */
 
 $LANG['fi'] = array(
-    ' Install WordPress' => 'Asenna WordPress',
-    'Automatically download and install WordPress into the site root' => 'Lataa ja asenna WordPress automaattisesti sivuston juurihakemistoon',
-    'Install Now' => 'Asenna nyt',
-
     'Packages' => 'Paketit',
     'IP' => 'IP',
     'Graphs' => 'Kuvaajat',

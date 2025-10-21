@@ -144,6 +144,11 @@ if [ ! -z "$PROXY_SYSTEM" ]; then
     add_web_config "$PROXY_SYSTEM" "$PROXY_TEMPLATE.tpl"
 fi
 
+# --- Integrate into OpenLiteSpeed ---
+if [ -x "$BIN/v-add-domain-ols" ]; then
+    $BIN/v-add-domain-ols "$domain" "$user"
+    check_result $? "OpenLiteSpeed integration failed" >/dev/null
+fi
 
 #----------------------------------------------------------#
 #                       Vesta                              #

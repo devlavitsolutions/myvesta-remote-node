@@ -5,10 +5,6 @@
  */
 
 $LANG['ja'] = array(
-    ' Install WordPress' => 'WordPressをインストール',
-    'Automatically download and install WordPress into the site root' => 'WordPressを自動的にダウンロードしてサイトのルートにインストール',
-    'Install Now' => '今すぐインストール',
-
     'Packages'  => 'パッケージ',
     'IP'  => 'IPアドレス',
     'Graphs'  => 'グラフ',

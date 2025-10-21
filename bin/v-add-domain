@@ -23,7 +23,6 @@ source $VESTA/func/main.sh
 source $VESTA/func/ip.sh
 source $VESTA/conf/vesta.conf
 
-
 #----------------------------------------------------------#
 #                    Verifications                         #
 #----------------------------------------------------------#
@@ -80,8 +79,5 @@ check_result $? "can't restart dns" > /dev/null
 #----------------------------------------------------------#
 #                       Vesta                              #
 #----------------------------------------------------------#
-
-# TODO: Extract wrapper command
-/usr/local/bin/v-add-domain-ols $domain $user
 
 exit

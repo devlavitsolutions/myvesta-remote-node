@@ -355,13 +355,6 @@ exec (VESTA_CMD."v-list-user-ips ".$user." json", $output, $return_var);
 $ips = json_decode(implode('', $output), true);
 unset($output);
 
-$main_ip = trim(shell_exec("ip addr | grep 'inet ' | grep global | head -n1 | awk '{print \$2}' | cut -f1 -d/"));
-if (array_key_exists($main_ip, $ips)) {
-    $main_item = [$main_ip => $ips[$main_ip]];
-    unset($ips[$main_ip]);
-    $ips = $main_item + $ips;
-}
-
 // List web stat engines
 exec (VESTA_CMD."v-list-web-stats json", $output, $return_var);
 $stats = json_decode(implode('', $output), true);

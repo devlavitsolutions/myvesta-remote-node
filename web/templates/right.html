@@ -127,6 +127,7 @@ exec (VESTA_CMD."v-list-user-log ".$GLOBALS['CURRENT_USER_FINAL']." json 25", $o
 check_error($return_var);
 $data = json_decode(implode('', $output), true);
 foreach ($data as $key => $value) {
+    ++$i;
 ?>
 
       <div>

@@ -108,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 foreach ($domains as $domain) {
                     $name = escapeshellarg($domain['name']);
-                    $cmd = VESTA_CMD. 'v-disable-lscache ' . $name;
+                    $cmd = '/usr/local/bin/v-disable-lscache ' . $name;
 
                     if (!empty($_POST['uninstall'])) {
                         $cmd .= ' --uninstall';
@@ -139,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 foreach ($domains as $domain) {
                     $name = escapeshellarg($domain['name']);
-                    $cmd = VESTA_CMD . 'v-install-lsc-version ' . $name;
+                    $cmd = '/usr/local/vesta/bin/v-install-lsc-version ' . $name;
 
                     // Use version from config
                     if (!empty($activeLscVersion)) {
@@ -173,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 foreach ($domains as $domain) {
                     $name = escapeshellarg($domain['name']);
-                    $cmd = VESTA_CMD . 'v-disable-lsc-version ' . $name;
+                    $cmd = '/usr/local/vesta/bin/v-disable-lsc-version ' . $name;
 
                     if (!empty($_POST['uninstall'])) {
                         $cmd .= ' --uninstall';

@@ -6,11 +6,14 @@
 	<i class="l-icon-shortcuts"></i>
 </a>
 
-<div class="l-header">
-	<div class="l-center">
-		<a href="/list/user/" class="l-logo"></a>
+<div class="hc-top-panel">
+	<!-- l-header -->
+	<div class="hc-top-menu">
+		<a href="/list/user/" class="hc-logo">
+			<img class="hc-menu-logo" src="/images/myvesta-large-white-130.png">
+		</a>
 		<!-- /.l-logo -->
-		<div class="l-menu clearfix noselect">
+		<div class=" clearfix noselect">
 			<div class="l-menu__item <?php if($TAB == 'PACKAGE' ) echo 'l-menu__item--active' ?>"><a
 					href="/list/package/">
 					<?=__('Packages')?>
@@ -54,9 +57,9 @@
 				</a></div>
 		</div>
 		<!-- /.l-menu -->
-		<div class="l-profile noselect">
+		<div class="hc-profile noselect">
 			<a class="l-profile__notifications <? if($panel[$user]['NOTIFICATIONS'] == 'yes') echo " updates";
-				?>">&nbsp;</a>
+				?>"></a>
 			<a class="l-profile__username" href="/edit/user/?user=<?php echo $user; ?>">
 				<?=$user?>
 			</a>
@@ -73,15 +76,16 @@
 
 
 
-<div class="l-content">
+<div class="hc-main-panel">
 
-	<div class="l-center">
-		<div class="l-stat">
-			<a href="/list/user/"><img src="/images/myvesta-large-white-130.png"
-					style="display: block; width: 130px; height: 69px; margin-top: 5px; margin-left: 13px; position: relative;"></a>
-			<div class="l-stat__col <?php if($TAB == 'USER' ) echo 'l-stat__col--active' ?>">
+	<div class="hc-menu-panel flex-shrink-0">
+		<div class="list-unstyled ps-0">
+			<!-- <a href="/list/user/"><img class="hc-menu-logo" src="/images/myvesta-large-white-130.png"></a> -->
+			<div class="mb-1   <?php if($TAB == 'USER' ) echo 'l-stat__col--active' ?>">
 				<a href="/list/user/">
+					
 					<div class="l-stat__col-title">
+						<i class="fa-regular fa-circle-user"></i>
 						<?=__('USER')?><span>
 							<?=$panel[$user]['U_USERS']?>
 						</span>
@@ -101,9 +105,10 @@
 				</a>
 			</div>
 			<?php if($panel[$user]['WEB_DOMAINS'] != "0") { ?>
-			<div class="l-stat__col <?php if($TAB == 'WEB' ) echo 'l-stat__col--active' ?>">
+			<div class="mb-1 <?php if($TAB == 'WEB' ) echo 'l-stat__col--active' ?>">
 				<a href="/list/web/">
 					<div class="l-stat__col-title">
+						<i class="fa-regular fa-cloud"></i>
 						<?=__('WEB')?><span>
 							<?=$panel[$user]['U_WEB_DOMAINS']?>
 						</span>
@@ -129,9 +134,10 @@
 			</div>
 			<?php } ?>
 			<?php if($panel[$user]['DNS_DOMAINS'] != "0") { ?>
-			<div class="l-stat__col <?php if($TAB == 'DNS' ) echo 'l-stat__col--active' ?>">
+			<div class="mb-1 <?php if($TAB == 'DNS' ) echo 'l-stat__col--active' ?>">
 				<a href="/list/dns/">
 					<div class="l-stat__col-title">
+						<i class="fa-regular fa-rectangle-list"></i>
 						<?=__('DNS')?><span>
 							<?=$panel[$user]['U_DNS_DOMAINS']?>
 						</span>
@@ -157,9 +163,10 @@
 			</div>
 			<?php } ?>
 			<?php if($panel[$user]['MAIL_DOMAINS'] != "0") { ?>
-			<div class="l-stat__col <?php if($TAB == 'MAIL' ) echo 'l-stat__col--active' ?>">
+			<div class="mb-1 <?php if($TAB == 'MAIL' ) echo 'l-stat__col--active' ?>">
 				<a href="/list/mail/">
 					<div class="l-stat__col-title">
+						<i class="fa-regular fa-envelope"></i>
 						<?=__('MAIL')?><span>
 							<?=$panel[$user]['U_MAIL_DOMAINS']?>
 						</span>
@@ -185,9 +192,10 @@
 			</div>
 			<?php } ?>
 			<?php if($panel[$user]['DATABASES'] != "0") { ?>
-			<div class="l-stat__col <?php if($TAB == 'DB' ) echo 'l-stat__col--active' ?>">
+			<div class="mb-1 <?php if($TAB == 'DB' ) echo 'l-stat__col--active' ?>">
 				<a href="/list/db/">
 					<div class="l-stat__col-title">
+						<i class="fa fa-database"></i>
 						<?=__('DB')?><span>
 							<?=$panel[$user]['U_DATABASES']?>
 						</span>
@@ -208,9 +216,10 @@
 			</div>
 			<?php } ?>
 			<?php if($panel[$user]['CRON_JOBS'] != "0") { ?>
-			<div class="l-stat__col <?php if($TAB == 'CRON' ) echo 'l-stat__col--active' ?>">
+			<div class="mb-1 <?php if($TAB == 'CRON' ) echo 'l-stat__col--active' ?>">
 				<a href="/list/cron/">
 					<div class="l-stat__col-title">
+						<i class="fa-regular fa-clock"></i>
 						<?=__('CRON')?><span>
 							<?=$panel[$user]['U_CRON_JOBS']?>
 						</span>
@@ -231,9 +240,10 @@
 			</div>
 			<?php } ?>
 			<?php if($panel[$user]['BACKUPS'] != "0") { ?>
-			<div class="l-stat__col <?php if($TAB == 'BACKUP' ) echo 'l-stat__col--active' ?>">
+			<div class="mb-1 <?php if($TAB == 'BACKUP' ) echo 'l-stat__col--active' ?>">
 				<a href="/list/backup/">
 					<div class="l-stat__col-title">
+						<i class="fa fa-download"></i>
 						<?=__('BACKUP')?><span>
 							<?=$panel[$user]['U_BACKUPS']?>
 						</span>
@@ -248,9 +258,10 @@
 				</a>
 			</div>
 			<?php } ?>
-			<div class="l-stat__col <?php if($TAB == 'LITESPEED' ) echo 'l-stat__col--active' ?>">
+			<div class="mb-1 <?php if($TAB == 'LITESPEED' ) echo 'l-stat__col--active' ?>">
 				<a href="/list/litespeed/">
 					<div class="l-stat__col-title">
+						<i class="fa-solid fa-bolt"></i>
 						<?=__('LITESPEED')?>
 					</div>
 				</a>
@@ -260,10 +271,8 @@ $vesta_version=file_get_contents('/usr/local/vesta/version.txt');
 $vesta_build_date=file_get_contents('/usr/local/vesta/build_date.txt');
 $debian_ver=file_get_contents('/etc/debian_version');
 ?>
-			<div style="display: block; padding: 30px 0 0 19px; color: #b9bcbd;">
-				<!-- <span style="font-weight: bold;">Host Control</span> <?php echo $vesta_version;?><br /> -->
-				<!-- Demo version: -->
-				<span style="font-weight: bold;">Host Control</span> 0.1<br />
+			<div class="hc_server_version">
+				<span style="font-weight: bold;">Host Control</span> <?php echo $vesta_version;?><br />
 				<span style="font-weight: bold;">Build date:</span>
 				<?php echo $vesta_build_date;?><br />
 				<span style="font-weight: bold;">Debian </span>
@@ -279,7 +288,9 @@ $debian_ver=file_get_contents('/etc/debian_version');
 	</div>
 
 	<?php
-        include('/usr/local/vesta/web/templates/right.html');
+		// izmestiti u glavni dashboard
+        // include('/usr/local/vesta/web/templates/right.html');
     ?>
-	<div class="l-separator"></div>
+	<div class="hc-content-panel">
+	<!-- <div class="l-separator"></div> -->
 	<!-- /.l-separator -->

@@ -1,0 +1,102 @@
+#!/bin/bash
+# info: Make a diff between two snapshots of the disk usage
+# options: FILE1 FILE2
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ]; then
+    echo "You must be root to execute this script"
+    exit 1
+fi
+
+# Let's declare three associative arrays
+declare -A FILE1
+declare -A FILE2
+declare -A FILED
+
+file1=$1
+file2=$2
+
+if [[ ! "$file1" =~ ^/usr/local/vesta/data/df/snapshot-.*\.txt$ ]]; then
+    file1="/usr/local/vesta/data/df/$file1"
+fi
+
+if [[ ! "$file2" =~ ^/usr/local/vesta/data/df/snapshot-.*\.txt$ ]]; then
+    file2="/usr/local/vesta/data/df/$file2"
+fi
+
+if [ ! -f "$file1" ]; then
+    echo "File $file1 not found"
+    exit 1
+fi
+
+if [ ! -f "$file2" ]; then
+    echo "File $file2 not found"
+    exit 1
+fi
+
+timestamp=$(date +%Y-%m-%d-%H-%M-%S)
+mkdir -p /usr/local/vesta/data/df-diff
+file0="/usr/local/vesta/data/df-diff/diff-$timestamp.txt"
+file0s="/usr/local/vesta/data/df-diff/diff-size-sorted-$timestamp.txt"
+file0f="/usr/local/vesta/data/df-diff/diff-folder-sorted-$timestamp.txt"
+touch $file0
+
+# Let's load the first file and fill the array FILE1
+while IFS=$'\t' read SIZE DIRECTORY; do
+    # Skip blank lines or lines that are not in the correct format
+    [[ -z "$DIRECTORY" ]] && continue
+    [[ "$DIRECTORY" = "total" ]] && continue
+    # Insert values into the array
+    FILE1["$DIRECTORY"]="$SIZE"
+done < "$file1"
+
+# Let's load the second file and fill the array FILE2
+while IFS=$'\t' read SIZE DIRECTORY; do
+    # Skip blank lines or lines that are not in the correct format
+    [[ -z "$DIRECTORY" ]] && continue
+    [[ "$DIRECTORY" = "total" ]] && continue
+    # Insert values into the array
+    FILE2["$DIRECTORY"]="$SIZE"
+done < "$file2"
+
+# We iterate through FILE1 and look for the matching key in FILE2
+for k in "${!FILE1[@]}"; do
+    if [[ -v FILE2["$k"] ]]; then
+        # If there is the same folder (KEY) in FILE2
+        DIFF=$(( ${FILE2[$k]} - ${FILE1[$k]} ))
+        FILED["$k"]=$DIFF
+        echo -e "${DIFF}\t${k}" >> $file0
+    else
+        # If the folder (KEY) is not found in FILE2
+        FILED["$k"]=${FILE1["$k"]}
+        echo -e "${FILE1["$k"]}\t${k}" >> $file0
+    fi
+done
+
+# sorted by size
+sort -nr -k1,1 $file0 > $file0s
+
+# sorted by folders
+while IFS=$'\t' read SIZE DIRECTORY; do
+    [[ -z "$DIRECTORY" ]] && continue
+    [[ "$DIRECTORY" = "total" ]] && continue
+    echo -e "$DIRECTORY\t${FILED["$DIRECTORY"]}" >> $file0f
+done < "$file2"
+
+chmod 600 $file0 $file0s $file0f
+chown root:root $file0 $file0s $file0f
+
+echo "Done."
+echo "You can do:"
+echo "mcview $file0"
+echo "mcview $file0s"
+echo "mcview $file0f"
+echo "--------------------------------"
+echo "Here is the first 30 lines of the diff, sorted by size (descending, in MB):"
+head -n 30 $file0s
+echo "--------------------------------"
+echo "Here is the first 30 lines of the diff, sorted by folders (in MB):"
+head -n 30 $file0f
+echo "--------------------------------"
+
+exit 0

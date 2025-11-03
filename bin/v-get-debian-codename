@@ -1,0 +1,13 @@
+#!/bin/bash
+# info: Get the Debian codename
+# options: NONE
+
+release=$(cat /etc/debian_version | tr "." "\n" | head -n1)
+if [ "$release" = "8" ]; then codename='jessie'; fi;
+if [ "$release" = "9" ]; then codename='stretch'; fi;
+if [ "$release" = "10" ]; then codename='buster'; fi;
+if [ "$release" = "11" ]; then codename='bullseye'; fi;
+if [ "$release" = "12" ]; then codename='bookworm'; fi;
+if [ "$release" = "13" ]; then codename='trixie'; fi;
+echo $codename
+exit 0

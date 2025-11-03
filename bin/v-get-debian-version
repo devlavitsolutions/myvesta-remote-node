@@ -1,0 +1,6 @@
+#!/bin/bash
+# info: Get the Debian version number
+
+release=$(cat /etc/debian_version | tr "." "\n" | head -n1)
+echo $release
+exit 0

@@ -8,7 +8,6 @@ define('NO_AUTH_REQUIRED',true);
 // Main include
 include($_SERVER['DOCUMENT_ROOT']."/inc/main.php");
 
-
 $TAB = 'LOGIN';
 
 // Logout

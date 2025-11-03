@@ -1,0 +1,11 @@
+#!/bin/bash
+# info: Clean up old snapshots of the disk usage
+# options: NONE
+
+folder="/usr/local/vesta/data/df"
+mkdir -p $folder
+find $folder -type f -mtime +30 -delete
+
+folder="/usr/local/vesta/data/df-diff"
+mkdir -p $folder
+find $folder -type f -mtime +30 -delete

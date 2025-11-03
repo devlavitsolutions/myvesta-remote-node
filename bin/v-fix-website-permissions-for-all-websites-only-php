@@ -1,0 +1,44 @@
+#!/bin/bash
+# info: fix website permissions for all websites
+# options:
+#
+# The command is used for fixing website permissions for all websites on the server.
+
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+# Importing system variables
+source /etc/profile
+
+# Includes
+source $VESTA/func/main.sh
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+touch /usr/local/vesta/log/fix-website-permissions-for-all-websites-only-php.log
+truncate -s 0 /usr/local/vesta/log/fix-website-permissions-for-all-websites-only-php.log
+
+for user in $(grep '@' /etc/passwd |cut -f1 -d:); do
+    if [ ! -f "/usr/local/vesta/data/users/$user/user.conf" ]; then
+        continue;
+    fi
+
+    for domain in $(/usr/local/vesta/bin/v-list-web-domains $user plain |cut -f 1); do
+        /usr/local/vesta/bin/v-fix-website-permissions-only-php $domain $user >> /usr/local/vesta/log/fix-website-permissions-for-all-websites-only-php.log 2>&1
+        echo "--------------------------------" >> /usr/local/vesta/log/fix-website-permissions-for-all-websites-only-php.log
+    done
+
+done
+
+#----------------------------------------------------------#
+#                       Vesta                              #
+#----------------------------------------------------------#
+
+# Logging
+log_event "$OK" "$ARGUMENTS"
+
+exit

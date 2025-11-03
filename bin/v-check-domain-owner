@@ -1,0 +1,64 @@
+#!/bin/bash
+# info: Check if the DOMAIN belongs to the USER account
+# options: USER DOMAIN
+#
+# This script returns '1' if the DOMAIN belongs to the USER account, otherwise it returns '0'
+
+user=$1
+domain=$2
+
+# Includes
+if [ -z "$VESTA" ]; then
+    VESTA='/usr/local/vesta'
+fi
+source $VESTA/func/main.sh
+
+# Normalize/format domain
+format_domain
+domain_idn=$domain
+format_domain_idn
+
+# Default result
+result=0
+
+# Quick validations (non-fatal): ensure config exists
+user_conf_dir="$VESTA/data/users/$user"
+web_conf="$user_conf_dir/web.conf"
+dns_conf="$user_conf_dir/dns.conf"
+mail_conf="$user_conf_dir/mail.conf"
+
+if [ -f "$web_conf" ]; then
+    # Check primary domain
+    if grep -Fq "DOMAIN='$domain'" "$web_conf"; then
+        result=1
+    elif grep -Fq "DOMAIN='$domain_idn'" "$web_conf"; then
+        result=1
+    else
+        # Check aliases in user's web.conf
+        if grep -Fq "'$domain'" "$web_conf" || \
+           grep -Fq "'$domain_idn'" "$web_conf" || \
+           grep -Fq "'$domain," "$web_conf" || \
+           grep -Fq ",$domain," "$web_conf" || \
+           grep -Fq ",$domain'" "$web_conf" || \
+           grep -Fq "'$domain_idn," "$web_conf" || \
+           grep -Fq ",$domain_idn," "$web_conf" || \
+           grep -Fq ",$domain_idn'" "$web_conf"; then
+            result=1
+        fi
+    fi
+fi
+
+if [ -f "$dns_conf" ]; then
+    if grep -Fq "DOMAIN='$domain'" "$dns_conf"; then
+        result=1
+    fi
+fi
+
+if [ -f "$mail_conf" ]; then
+    if grep -Fq "DOMAIN='$domain'" "$mail_conf"; then
+        result=1
+    fi
+fi
+
+echo "$result"
+exit 0

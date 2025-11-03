@@ -1,0 +1,121 @@
+#!/bin/bash
+# info: Fixing PHP and .env permissions and ownership for a website
+# options: DOMAIN [USER]
+
+#----------------------------------------------------------#
+#                    Variable&Function                     #
+#----------------------------------------------------------#
+
+whoami=$(whoami)
+if [ "$whoami" != "root" ]; then
+    echo "You must be root to execute this script"
+    exit 1
+fi
+
+# Importing system environment
+source /etc/profile
+
+# Argument definition
+domain=$1
+
+# Check if number of arguments is 2
+if [ $# -eq 2 ]; then
+    user=$2
+else
+    user=$(/usr/local/vesta/bin/v-search-domain-owner $domain)
+fi
+USER=$user
+
+# Includes
+source /usr/local/vesta/func/main.sh
+source /usr/local/vesta/conf/vesta.conf
+
+if [ -z "$user" ]; then
+    check_result $E_NOTEXIST "domain $domain doesn't exist"
+fi
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+check_args '1' "$#" 'DOMAIN'
+is_format_valid 'domain'
+is_object_valid 'user' 'USER' "$user"
+
+if [ ! -d "/home/$user" ]; then
+    echo "Error: Folder /home/$user doesn't exist";
+    exit 1;
+fi
+
+if [ ! -d "/home/$user/web/$domain/public_html" ]; then
+    echo "Error: Folder /home/$user/web/$domain/public_html doesn't exist";
+    exit 1;
+fi
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+# Going to domain directory
+cd /home/$USER/web/$domain
+
+# Ownership check
+if [ -z "$SKIP_OWNERSHIP_CHECK" ] && [ -f "public_html/index.php" ]; then
+    owner=$(stat -c '%U' "public_html/index.php")
+    if [ "$owner" = "root" ] || [ "$owner" = "www-data" ]; then
+        echo "Skipping permission fix for $domain, because v-lock-wordpress is used (index.php is owned by $owner)"
+        exit 1
+    fi
+fi
+
+echo "Updating PHP and .env permissions and ownership for /home/$USER/web/$domain/"
+
+php_chmod_allowed=1
+if [ -f "/home/php_chmod_disabled" ]; then
+    php_chmod_allowed=0
+fi
+if [ -f "/home/$USER/php_chmod_disabled" ]; then
+    php_chmod_allowed=0
+fi
+if [ -f "/home/$USER/web/php_chmod_disabled" ]; then
+    php_chmod_allowed=0
+fi
+if [ -f "/home/$USER/web/$domain/php_chmod_disabled" ]; then
+    php_chmod_allowed=0
+fi
+
+# === PHP and .env permissions ===
+if [ "$php_chmod_allowed" -eq 1 ]; then
+    php_chmod="600"
+
+    if [ "$WEB_SYSTEM" = 'nginx' ]; then
+        php_chmod="644"
+    fi
+
+    if [ -f "/home/php_chmod" ]; then
+        php_chmod=$(cat /home/php_chmod)
+    fi
+    if [ -f "/home/$USER/php_chmod" ]; then
+        php_chmod=$(cat /home/$USER/php_chmod)
+    fi
+    if [ -f "/home/$USER/web/php_chmod" ]; then
+        php_chmod=$(cat /home/$USER/web/php_chmod)
+    fi
+    if [ -f "/home/$USER/web/$domain/php_chmod" ]; then
+        php_chmod=$(cat /home/$USER/web/$domain/php_chmod)
+    fi
+
+    # Setting chmod 600 for all .php and .env files
+    echo "= Setting chmod $php_chmod for all .php and .env files"
+    # Fixing permissions
+    find -type f \( -name "*.php" -o -name "*.env" \) ! -perm $php_chmod -exec chmod $php_chmod {} +
+    # Fixing ownership
+    find -type f \( -name "*.php" -o -name "*.env" \) ! -user $USER -exec chown $USER:$USER {} +
+fi
+
+#----------------------------------------------------------#
+#                       Vesta                              #
+#----------------------------------------------------------#
+echo "PHP and .env permissions and ownership for $domain have been successfully updated."
+
+exit 0

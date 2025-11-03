@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+USER="root"
+PASSWORD="AfcRIhW3JcyS87iFxUQXqtj4CCNmJE3O"
+DB="hchq_db"
+VESTA='/usr/local/vesta'
+export VESTA
+BIN=$VESTA'/bin'
+
+# Ensure at least one argument
+if [[ $# -lt 1 ]]; then
+    echo '{"success":false,"error":"Missing required argument: action (enable|disable|mass_enable|mass_disable)"}'
+    exit 1
+fi
+
+ACTION="$1"
+IDS="${2:-}"  # optional second argument (comma-separated IDs)
+ACTIVE_LSC_VERSION="${3:-}" # optional LSC version (from config)
+STATUS=0
+
+# Helper function to run MySQL query safely
+run_mysql() {
+    local query="$1"
+    mysql -u "$USER" -p"$PASSWORD" -D "$DB" --batch --skip-column-names -e "$query" 2>&1 || STATUS=$?
+}
+
+# Initialize
+SUCCESS_DOMAINS=()
+FAILED_DOMAINS=()
+
+# Function to handle per-domain enable/disable
+process_domain() {
+    local domain_name="$1"
+    local domain_id="$2"
+    local cmd=""
+    local retval=0
+    local output=""
+
+    case "$ACTION" in
+        enable|mass_enable)
+            cmd=$BIN"/v-install-lsc-version $domain_name"
+            if [[ -n "$ACTIVE_LSC_VERSION" ]]; then
+                cmd+=" --version=${ACTIVE_LSC_VERSION}"
+            fi
+            ;;
+        disable|mass_disable)
+            cmd=$BIN"/v-disable-lsc-version $domain_name"
+            # optional uninstall flag, you can modify to read env or argument
+            if [[ "${UNINSTALL:-0}" == "1" ]]; then
+                cmd+=" --uninstall"
+            fi
+            ;;
+        *)
+            echo '{"success":false,"error":"Invalid action"}'
+            exit 1
+            ;;
+    esac
+
+    if output=$(eval "$cmd" 2>&1); then
+        if [[ "$ACTION" == "enable" || "$ACTION" == "mass_enable" ]]; then
+            run_mysql "UPDATE domains SET isCacheEnabled = 1 WHERE id = $domain_id;"
+        else
+            run_mysql "UPDATE domains SET isCacheEnabled = 0 WHERE id = $domain_id;"
+        fi
+        SUCCESS_DOMAINS+=("$domain_name")
+    else
+        FAILED_DOMAINS+=("$domain_name ($output)")
+    fi
+}
+
+# Main switch
+case "$ACTION" in
+    enable|disable)
+        if [[ -z "$IDS" ]]; then
+            echo "{\"success\":false,\"error\":\"Missing IDs for $ACTION action\"}"
+            exit 1
+        fi
+
+        CLEAN_IDS=$(echo "$IDS" | tr -cd '0-9,')
+        DOMAINS=$(mysql -u "$USER" -p"$PASSWORD" -D "$DB" --batch --skip-column-names \
+            -e "SELECT id, name FROM domains WHERE id IN ($CLEAN_IDS);")
+
+        while IFS=$'\t' read -r id name; do
+            process_domain "$name" "$id"
+        done <<< "$DOMAINS"
+        ;;
+
+    mass_enable)
+        DOMAINS=$(mysql -u "$USER" -p"$PASSWORD" -D "$DB" --batch --skip-column-names \
+            -e "SELECT id, name FROM domains WHERE isFlagged = 0 AND hasWordPress = 1;")
+
+        while IFS=$'\t' read -r id name; do
+            process_domain "$name" "$id"
+        done <<< "$DOMAINS"
+        ;;
+
+    mass_disable)
+        DOMAINS=$(mysql -u "$USER" -p"$PASSWORD" -D "$DB" --batch --skip-column-names \
+            -e "SELECT id, name FROM domains WHERE isFlagged = 0;")
+        while IFS=$'\t' read -r id name; do
+            process_domain "$name" "$id"
+        done <<< "$DOMAINS"
+        ;;
+
+    *)
+        echo '{"success":false,"error":"Invalid action. Use: enable | disable | mass_enable | mass_disable"}'
+        exit 1
+        ;;
+esac
+
+# Output results
+if [[ ${#SUCCESS_DOMAINS[@]} -gt 0 ]]; then
+    SUCCESS_MSG="Cache ${ACTION/_/ } for: ${SUCCESS_DOMAINS[*]}"
+else
+    SUCCESS_MSG=""
+fi
+
+if [[ ${#FAILED_DOMAINS[@]} -gt 0 ]]; then
+    ERROR_MSG="Failed for: ${FAILED_DOMAINS[*]}"
+else
+    ERROR_MSG=""
+fi
+
+if [[ $STATUS -eq 0 ]]; then
+    echo "{\"success\":true,\"message\":\"$SUCCESS_MSG\",\"error\":\"$ERROR_MSG\"}"
+else
+    echo "{\"success\":false,\"error\":\"$ERROR_MSG\"}"
+fi

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+USER="root"
+PASSWORD="AfcRIhW3JcyS87iFxUQXqtj4CCNmJE3O"
+DB="hchq_db"
+
+# Ensure at least one argument
+if [[ $# -lt 1 ]]; then
+    echo '{"success":false,"error":"Missing required argument: action (flag|unflag|unflag_all)"}'
+    exit 1
+fi
+
+ACTION="$1"
+IDS="${2:-}"  # optional second argument (comma-separated IDs)
+
+STATUS=0
+RESULT=""
+
+# Helper function to run MySQL command safely
+run_mysql() {
+    local query="$1"
+    mysql -u "$USER" -p"$PASSWORD" -D "$DB" --batch --skip-column-names -e "$query" 2>&1 || STATUS=$?
+}
+
+case "$ACTION" in
+    flag)
+        if [[ -z "$IDS" ]]; then
+            echo '{"success":false,"error":"Missing IDs for flag action"}'
+            exit 1
+        fi
+
+        # Sanitize IDs (keep only digits and commas)
+        CLEAN_IDS=$(echo "$IDS" | tr -cd '0-9,')
+        QUERY="UPDATE domains SET isFlagged = 1 WHERE id IN ($CLEAN_IDS);"
+        run_mysql "$QUERY"
+        MSG="Selected domains flagged."
+        ;;
+    unflag)
+        if [[ -z "$IDS" ]]; then
+            echo '{"success":false,"error":"Missing IDs for unflag action"}'
+            exit 1
+        fi
+
+        CLEAN_IDS=$(echo "$IDS" | tr -cd '0-9,')
+        QUERY="UPDATE domains SET isFlagged = 0 WHERE id IN ($CLEAN_IDS);"
+        run_mysql "$QUERY"
+        MSG="Selected domains unflagged."
+        ;;
+    unflag_all)
+        QUERY="UPDATE domains SET isFlagged = 0;"
+        run_mysql "$QUERY"
+        MSG="All domains unflagged."
+        ;;
+    *)
+        echo '{"success":false,"error":"Invalid action. Use: flag | unflag | unflag_all"}'
+        exit 1
+        ;;
+esac
+
+if [[ $STATUS -eq 0 ]]; then
+    echo "{\"success\":true,\"message\":\"$MSG\"}"
+else
+    ERROR=$(echo "$RESULT" | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/' | tr -d '\n')
+    echo "{\"success\":false,\"error\":\"$ERROR\"}"
+fi

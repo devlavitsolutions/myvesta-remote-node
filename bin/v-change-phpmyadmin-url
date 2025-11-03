@@ -1,0 +1,234 @@
+#!/bin/bash
+# info: Change /phpmyadmin/ URL to /some_new_phpmyadmin/ URL
+# options: NEW_PHPMYADMIN_URL
+#
+# This script will change the /phpmyadmin/ URL to /some_new_phpmyadmin/ URL for all hosted websites on the Linux server.
+# Example of usage: v-change-phpmyadmin-url 'some_new_phpmyadmin'
+
+# Source function library
+source /usr/local/vesta/func/main.sh
+source /usr/local/vesta/func/domain.sh
+
+timestamp=$(date +%Y%m%d_%H%M%S)
+
+# Check arguments
+if [ $# -ne 1 ]; then
+    echo "Error: not enough arguments provided"
+    echo "Usage: $0 NEW_PHPMYADMIN_URL"
+    echo "Example: $0 'mynewphpmyadminurl'"
+    exit 1
+fi
+
+wrong_db_pma_url_format() {
+    echo "Error: DB_PMA_URL can not be parsed from /usr/local/vesta/conf/vesta.conf"
+    echo "Please check the format of DB_PMA_URL in /usr/local/vesta/conf/vesta.conf"
+    echo "The correct format is:"
+    echo "DB_PMA_URL='https://localhost.dev/phpmyadmin/'"
+    echo ""
+    echo "Currently it is set to: "
+    echo "$DB_PMA_URL"
+    exit 1
+}
+
+DB_PMA_URL=$(grep '^DB_PMA_URL=' /usr/local/vesta/conf/vesta.conf)
+if [ ! -z "$DB_PMA_URL" ]; then
+    DB_PMA_URL=$(echo "$DB_PMA_URL" | sed 's|^DB_PMA_URL=||')
+    DB_PMA_URL=$(echo "$DB_PMA_URL" | sed 's|'\''||g')
+fi
+echo "= DB_PMA_URL='$DB_PMA_URL'"
+
+if [[ "$DB_PMA_URL" =~ ^http ]]; then
+    # Extract the URL path from the full URL
+    OLD_PHPMYADMIN_URL=$(echo "$DB_PMA_URL" | sed 's|.*://[^/]*/||' | sed 's|/$||')
+else
+    # If DB_PMA_URL doesn't start with http, treat it as just the path
+    OLD_PHPMYADMIN_URL="$DB_PMA_URL"
+fi
+
+# Remove leading slash if present
+OLD_PHPMYADMIN_URL=$(echo "$OLD_PHPMYADMIN_URL" | sed 's|^/||')
+# Remove trailing slash if present
+OLD_PHPMYADMIN_URL=$(echo "$OLD_PHPMYADMIN_URL" | sed 's|/$||')
+
+if [ "$OLD_PHPMYADMIN_URL" = "$HOSTNAME" ]; then
+   wrong_db_pma_url_format
+fi
+
+if [ -z "$OLD_PHPMYADMIN_URL" ]; then
+    if [ -z "$DB_PMA_URL" ]; then
+        echo "DB_PMA_URL='https://$HOSTNAME/phpmyadmin/'" >> /usr/local/vesta/conf/vesta.conf
+        OLD_PHPMYADMIN_URL="phpmyadmin"
+    else
+        wrong_db_pma_url_format
+    fi
+fi
+
+echo "= OLD_PHPMYADMIN_URL: '$OLD_PHPMYADMIN_URL'"
+
+NEW_PHPMYADMIN_URL="$1"
+
+# Remove leading slash if present
+NEW_PHPMYADMIN_URL=$(echo "$NEW_PHPMYADMIN_URL" | sed 's|^/||')
+# Remove trailing slash if present
+NEW_PHPMYADMIN_URL=$(echo "$NEW_PHPMYADMIN_URL" | sed 's|/$||')
+
+echo "= NEW_PHPMYADMIN_URL: '$NEW_PHPMYADMIN_URL'"
+
+# Validate input
+if [ -z "$OLD_PHPMYADMIN_URL" ] || [ -z "$NEW_PHPMYADMIN_URL" ]; then
+    echo "Error: URL parameters cannot be empty"
+    exit 1
+fi
+
+if  [ -L "/usr/share/$NEW_PHPMYADMIN_URL" ] && [ "$NEW_PHPMYADMIN_URL" != "phpmyadmin" ]; then
+    echo "Error: Directory /usr/share/$NEW_PHPMYADMIN_URL already exists"
+    exit 1
+fi
+
+if  [ -L "/var/lib/roundcube/$NEW_PHPMYADMIN_URL" ] || [ "$NEW_PHPMYADMIN_URL" = "webmail" ]; then
+    echo "Error: Conflict name with Webmail /var/lib/roundcube/$NEW_PHPMYADMIN_URL"
+    exit 1
+fi
+
+# Check if old and new URLs are the same
+if [ "$OLD_PHPMYADMIN_URL" = "$NEW_PHPMYADMIN_URL" ]; then
+    echo "Error: Old and new phpMyAdmin URLs are the same"
+    exit 1
+fi
+
+echo "== Changing phpMyAdmin URL from '/$OLD_PHPMYADMIN_URL/' to '/$NEW_PHPMYADMIN_URL/'"
+
+# Function to backup file
+backup_file() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        folder=$(dirname "$file")
+        filename=$(basename "$file")
+        backup_folder="/root/backup-phpmyadmin-$timestamp/$folder"
+        backup_file="/root/backup-phpmyadmin-$timestamp/$folder/$filename"
+        if [ ! -f "$backup_file" ]; then
+            mkdir -p "$backup_folder"
+            cp "$file" "$backup_file"
+            echo "= Backed up: $file -> $backup_file"
+        fi
+    fi
+}
+
+# Function to update file content
+update_file() {
+    local file="$1"
+    local old_pattern="$2"
+    local new_pattern="$3"
+    
+    if [ -f "$file" ]; then
+        backup_file "$file"
+        sed -i "s|$old_pattern|$new_pattern|g" "$file"
+        echo "= Updated: $file"
+    else
+        echo "****** Warning: File not found: $file *******"
+    fi
+}
+
+# Update nginx templates
+echo "== Updating nginx templates..."
+
+# Update .stpl files
+update_file "/usr/local/vesta/data/templates/web/nginx/force-https-webmail-phpmyadmin.stpl" \
+    "location /$OLD_PHPMYADMIN_URL" \
+    "location /$NEW_PHPMYADMIN_URL"
+
+update_file "/usr/local/vesta/data/templates/web/nginx/hosting-webmail-phpmyadmin.stpl" \
+    "location /$OLD_PHPMYADMIN_URL" \
+    "location /$NEW_PHPMYADMIN_URL"
+
+# Update .tpl files
+update_file "/usr/local/vesta/data/templates/web/nginx/hosting-webmail-phpmyadmin.tpl" \
+    "location /$OLD_PHPMYADMIN_URL" \
+    "location /$NEW_PHPMYADMIN_URL"
+
+# Update nginx include file
+echo "== Updating nginx include file..."
+update_file "/etc/nginx/conf.d/phpmyadmin.inc" \
+    "location /$OLD_PHPMYADMIN_URL" \
+    "location /$NEW_PHPMYADMIN_URL"
+
+update_file "/etc/nginx/conf.d/phpmyadmin.inc" \
+    "alias /usr/share/$OLD_PHPMYADMIN_URL" \
+    "alias /usr/share/$NEW_PHPMYADMIN_URL"
+
+update_file "/etc/nginx/conf.d/phpmyadmin.inc" \
+    "alias /usr/share/$OLD_PHPMYADMIN_URL/\$1" \
+    "alias /usr/share/$NEW_PHPMYADMIN_URL/\$1"
+
+# Update Apache configuration
+echo "== Updating Apache configuration..."
+update_file "/etc/phpmyadmin/apache.conf" \
+    "Alias /$OLD_PHPMYADMIN_URL" \
+    "Alias /$NEW_PHPMYADMIN_URL"
+
+update_file "/usr/local/vesta/conf/vesta.conf" \
+    "/$OLD_PHPMYADMIN_URL" \
+    "/$NEW_PHPMYADMIN_URL"
+
+if  [ -L "/usr/share/$OLD_PHPMYADMIN_URL" ] && [ "$OLD_PHPMYADMIN_URL" != "phpmyadmin" ]; then
+    echo "= Removing symlink from /usr/share/$OLD_PHPMYADMIN_URL"
+    rm -f /usr/share/$OLD_PHPMYADMIN_URL
+fi
+
+# Create symlink if it doesn't exist
+if  [ ! -d "/usr/share/$NEW_PHPMYADMIN_URL" ] && [ ! -L "/usr/share/$NEW_PHPMYADMIN_URL" ] && [ "$NEW_PHPMYADMIN_URL" != "phpmyadmin" ]; then
+    echo "= Creating symlink from /usr/share/$NEW_PHPMYADMIN_URL to /usr/share/phpmyadmin"
+    ln -s /usr/share/phpmyadmin /usr/share/$NEW_PHPMYADMIN_URL
+fi
+
+# Regenerate all web configurations
+echo "== Regenerating web configurations..."
+
+# Get all users
+users=$(ls /home)
+
+for user in $users; do
+    # Skip system users and non-existent home directories
+    if [ ! -d "/home/$user" ] || [ ! -d "/home/$user/conf/web" ]; then
+        continue
+    fi
+    
+    echo "= Rebuilding web config files for domain: $domain (user: $user)"
+    v-rebuild-web-domains $user 'no'
+done
+
+# Restart web services
+echo "== Restarting web services..."
+
+# Restart nginx
+if systemctl is-active --quiet nginx; then
+    systemctl restart nginx
+    if [ $? -ne 0 ]; then
+        echo "****** Warning: Nginx restart failed *******"
+    fi
+    echo "= Nginx restarted"
+else
+    echo "****** Warning: Nginx is not running *******"
+fi
+
+# Restart Apache2
+if systemctl is-active --quiet apache2; then
+    systemctl restart apache2
+    if [ $? -ne 0 ]; then
+        echo "****** Warning: Apache2 restart failed *******"
+    fi
+    echo "= Apache2 restarted"
+else
+    echo "****** Warning: Apache2 is not running *******"
+fi
+
+echo "================================================"
+echo "phpMyAdmin URL change completed successfully!"
+echo "Old URL: https://$HOSTNAME/$OLD_PHPMYADMIN_URL/"
+echo "New URL: https://$HOSTNAME/$NEW_PHPMYADMIN_URL/"
+echo "================================================"
+echo "Note: You may need to clear your browser cache to access the new URL."
+echo "Backup files have been created here /root/backup-phpmyadmin-$timestamp/"
+echo "================================================"
+
+exit 0

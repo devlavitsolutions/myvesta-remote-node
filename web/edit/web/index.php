@@ -18,36 +18,6 @@ if (($_SESSION['user'] == 'admin') && (!empty($_GET['user']))) {
     $user=escapeshellarg($_GET['user']);
 }
 
-// Handle "Install WordPress" form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['token'], $_POST['user'], $_POST['domain'], $_POST['type']) && $_POST['type'] == 'wordpress') {
-    // Check token
-    if (!isset($_SESSION['token']) || $_POST['token'] !== $_SESSION['token']) {
-        header('Location: /edit/web/');
-        exit;
-    }
-
-    // Sanitize inputs
-    $user = trim($_POST['user']);
-    $domain = trim($_POST['domain']);
-
-    // Validate
-    if ($user === '' || $domain === '') {
-        header('Location: /edit/web/?domain=' . urlencode($domain));
-        exit;
-    }
-
-    // Prepare command
-    $script = VESTA_CMD . 'v-install-wordpress';
-    $cmd = escapeshellcmd($script) . ' ' . escapeshellarg($domain);
-
-    // Execute
-    exec($cmd . ' 2>&1', $output, $status);
-
-    // Redirect back to the same page
-    header('Location: /edit/web/?domain=' . urlencode($domain));
-    exit;
-}
-
 // List domain
 $v_domain = escapeshellarg($_GET['domain']);
 exec (VESTA_CMD."v-list-web-domain ".$user." ".$v_domain." json", $output, $return_var);
@@ -104,13 +74,6 @@ if ( $v_suspended == 'yes' ) {
 }
 $v_time = $data[$v_domain]['TIME'];
 $v_date = $data[$v_domain]['DATE'];
-
-// Is WordPress Installed
-$docroot = $data[$v_domain]['DOCUMENT_ROOT'];
-$wp_installed = false;
-if (file_exists("$docroot/wp-config.php") && is_dir("$docroot/wp-includes")) {
-    $wp_installed = true;
-}
 
 // List ip addresses
 exec (VESTA_CMD."v-list-user-ips ".$user." json", $output, $return_var);

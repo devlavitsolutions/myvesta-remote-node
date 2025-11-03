@@ -1,0 +1,233 @@
+#!/bin/bash
+# info: Change /webmail/ URL to /some_new_webmail/ URL
+# options: NEW_WEBMAIL_URL
+#
+# This script will change the /webmail/ URL to /some_new_webmail/ URL for all hosted websites on the Linux server.
+# Example of usage: v-change-webmail-url 'some_new_webmail'
+
+# Source function library
+source /usr/local/vesta/func/main.sh
+source /usr/local/vesta/func/domain.sh
+
+timestamp=$(date +%Y%m%d_%H%M%S)
+
+# Check arguments
+if [ $# -ne 1 ]; then
+    echo "Error: not enough arguments provided"
+    echo "Usage: $0 NEW_WEBMAIL_URL"
+    echo "Example: $0 'mynewwebmailurl'"
+    exit 1
+fi
+
+wrong_mail_url_format() {
+    echo "Error: MAIL_URL can not be parsed from /usr/local/vesta/conf/vesta.conf"
+    echo "Please check the format of MAIL_URL in /usr/local/vesta/conf/vesta.conf"
+    echo "The correct format is:"
+    echo "MAIL_URL='https://localhost.dev/webmail/'"
+    echo ""
+    echo "Currently it is set to: "
+    echo "$MAIL_URL"
+    exit 1
+}
+
+MAIL_URL=$(grep '^MAIL_URL=' /usr/local/vesta/conf/vesta.conf)
+if [ ! -z "$MAIL_URL" ]; then
+    MAIL_URL=$(echo "$MAIL_URL" | sed 's|^MAIL_URL=||')
+    MAIL_URL=$(echo "$MAIL_URL" | sed 's|'\''||g')
+fi
+echo "= MAIL_URL='$MAIL_URL'"
+
+if [[ "$MAIL_URL" =~ ^http ]]; then
+    # Extract the URL path from the full URL
+    OLD_WEBMAIL_URL=$(echo "$MAIL_URL" | sed 's|.*://[^/]*/||' | sed 's|/$||')
+else
+    # If MAIL_URL doesn't start with http, treat it as just the path
+    OLD_WEBMAIL_URL="$MAIL_URL"
+fi
+
+# Remove leading slash if present
+OLD_WEBMAIL_URL=$(echo "$OLD_WEBMAIL_URL" | sed 's|^/||')
+# Remove trailing slash if present
+OLD_WEBMAIL_URL=$(echo "$OLD_WEBMAIL_URL" | sed 's|/$||')
+
+if [ "$OLD_WEBMAIL_URL" = "$HOSTNAME" ]; then
+   wrong_mail_url_format
+fi
+
+if [ -z "$OLD_WEBMAIL_URL" ]; then
+    if [ -z "$MAIL_URL" ]; then
+        echo "MAIL_URL='https://$HOSTNAME/webmail/'" >> /usr/local/vesta/conf/vesta.conf
+        OLD_WEBMAIL_URL="webmail"
+    else
+        wrong_mail_url_format
+    fi
+fi
+
+echo "= OLD_WEBMAIL_URL: '$OLD_WEBMAIL_URL'"
+
+NEW_WEBMAIL_URL="$1"
+
+# Remove leading slash if present
+NEW_WEBMAIL_URL=$(echo "$NEW_WEBMAIL_URL" | sed 's|^/||')
+# Remove trailing slash if present
+NEW_WEBMAIL_URL=$(echo "$NEW_WEBMAIL_URL" | sed 's|/$||')
+
+echo "= NEW_WEBMAIL_URL: '$NEW_WEBMAIL_URL'"
+
+# Validate input
+if [ -z "$OLD_WEBMAIL_URL" ] || [ -z "$NEW_WEBMAIL_URL" ]; then
+    echo "Error: URL parameters cannot be empty"
+    exit 1
+fi
+
+if  [ -L "/var/lib/roundcube/$NEW_WEBMAIL_URL" ] && [ "$NEW_WEBMAIL_URL" != "webmail" ]; then
+    echo "Error: Directory /var/lib/roundcube/$NEW_WEBMAIL_URL already exists"
+    exit 1
+fi
+
+if  [ -L "/usr/share/$NEW_WEBMAIL_URL" ] || [ "$NEW_WEBMAIL_URL" = "phpmyadmin" ]; then
+    echo "Error: Conflict name with phpMyAdmin /usr/share/$NEW_WEBMAIL_URL"
+    exit 1
+fi
+
+# Check if old and new URLs are the same
+if [ "$OLD_WEBMAIL_URL" = "$NEW_WEBMAIL_URL" ]; then
+    echo "Error: Old and new webmail URLs are the same"
+    exit 1
+fi
+
+echo "== Changing Webmail URL from '/$OLD_WEBMAIL_URL' to '/$NEW_WEBMAIL_URL'"
+
+# Function to backup file
+backup_file() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        folder=$(dirname "$file")
+        filename=$(basename "$file")
+        backup_folder="/root/backup-webmail-$timestamp/$folder"
+        backup_file="/root/backup-webmail-$timestamp/$folder/$filename"
+        if [ ! -f "$backup_file" ]; then
+            mkdir -p "$backup_folder"
+            cp "$file" "$backup_file"
+            echo "= Backed up: $file -> $backup_file"
+        fi
+    fi
+}
+
+# Function to update file content
+update_file() {
+    local file="$1"
+    local old_pattern="$2"
+    local new_pattern="$3"
+
+    if [ -f "$file" ]; then
+        backup_file "$file"
+        sed -i "s|$old_pattern|$new_pattern|g" "$file"
+        echo "= Updated: $file"
+    else
+        echo "****** Warning: File not found: $file *******"
+    fi
+}
+
+# Update nginx templates
+echo "== Updating nginx templates..."
+
+# Update .stpl files
+update_file "/usr/local/vesta/data/templates/web/nginx/force-https-webmail-phpmyadmin.stpl" \
+    "location /$OLD_WEBMAIL_URL" \
+    "location /$NEW_WEBMAIL_URL"
+
+update_file "/usr/local/vesta/data/templates/web/nginx/hosting-webmail-phpmyadmin.stpl" \
+    "location /$OLD_WEBMAIL_URL" \
+    "location /$NEW_WEBMAIL_URL"
+
+# Update .tpl files
+update_file "/usr/local/vesta/data/templates/web/nginx/hosting-webmail-phpmyadmin.tpl" \
+    "location /$OLD_WEBMAIL_URL" \
+    "location /$NEW_WEBMAIL_URL"
+
+# Update nginx include file
+echo "== Updating nginx include file..."
+update_file "/etc/nginx/conf.d/webmail.inc" \
+    "location /$OLD_WEBMAIL_URL" \
+    "location /$NEW_WEBMAIL_URL"
+
+update_file "/etc/nginx/conf.d/webmail.inc" \
+    "location ~ ^/$OLD_WEBMAIL_URL" \
+    "location ~ ^/$NEW_WEBMAIL_URL"
+
+# Update Apache configuration
+echo "== Updating Apache configuration..."
+update_file "/etc/roundcube/apache.conf" \
+    "Alias /$OLD_WEBMAIL_URL" \
+    "Alias /$NEW_WEBMAIL_URL"
+
+
+# Update vesta.conf
+echo "== Updating vesta.conf"
+update_file "/usr/local/vesta/conf/vesta.conf" \
+    "/$OLD_WEBMAIL_URL" \
+    "/$NEW_WEBMAIL_URL"
+
+if [ -L "/var/lib/roundcube/$OLD_WEBMAIL_URL" ] && [ "$OLD_WEBMAIL_URL" != "webmail" ]; then
+    echo "= Removing symlink from /var/lib/roundcube/$OLD_WEBMAIL_URL"
+    rm -f /var/lib/roundcube/$OLD_WEBMAIL_URL
+fi
+
+# Create symlink if it doesn't exist
+if  [ ! -d "/var/lib/roundcube/$NEW_WEBMAIL_URL" ] && [ ! -L "/var/lib/roundcube/$NEW_WEBMAIL_URL" ] && [ "$NEW_WEBMAIL_URL" != "webmail" ]; then
+    echo "= Creating symlink from /var/lib/roundcube/$NEW_WEBMAIL_URL to /var/lib/roundcube/webmail"
+    ln -s /var/lib/roundcube/webmail /var/lib/roundcube/$NEW_WEBMAIL_URL
+fi
+
+# Regenerate all web configurations
+echo "== Regenerating web configurations..."
+
+# Get all users
+users=$(ls /home)
+
+for user in $users; do
+    # Skip system users and non-existent home directories
+    if [ ! -d "/home/$user" ] || [ ! -d "/home/$user/conf/web" ]; then
+        continue
+    fi
+
+    echo "= Rebuilding web config files for domain: $domain (user: $user)"
+    v-rebuild-web-domains $user 'no'
+done
+
+# Restart web services
+echo "== Restarting web services..."
+
+# Restart nginx
+if systemctl is-active --quiet nginx; then
+    systemctl restart nginx
+    if [ $? -ne 0 ]; then
+        echo "****** Warning: Nginx restart failed *******"
+    fi
+    echo "= Nginx restarted"
+else
+    echo "****** Warning: Nginx is not running *******"
+fi
+
+# Restart Apache2
+if systemctl is-active --quiet apache2; then
+    systemctl restart apache2
+    if [ $? -ne 0 ]; then
+        echo "****** Warning: Apache2 restart failed *******"
+    fi
+    echo "= Apache2 restarted"
+else
+    echo "****** Warning: Apache2 is not running *******"
+fi
+
+echo "================================================"
+echo "webmail URL change completed successfully!"
+echo "Old URL: https://$HOSTNAME/$OLD_WEBMAIL_URL/"
+echo "New URL: https://$HOSTNAME/$NEW_WEBMAIL_URL/"
+echo "================================================"
+echo "Note: You may need to clear your browser cache to access the new URL."
+echo "Backup files have been created here /root/backup-webmail-$timestamp/"
+echo "================================================"
+
+exit 0

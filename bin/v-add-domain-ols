@@ -24,7 +24,7 @@ source $VESTA/conf/vesta.conf
 LSWS_ROOT="/usr/local/lsws"
 CONF_DIR="$LSWS_ROOT/conf"
 HTTPD_CONF="$CONF_DIR/httpd_config.conf"
-LISTENERS=("Default" "DefaultSSL")
+LISTENERS=("Default" "Defaultssl")
 
 #----------------------------------------------------------#
 #                        Checks                            #

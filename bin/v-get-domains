@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+USER="root"
+PASSWORD="AfcRIhW3JcyS87iFxUQXqtj4CCNmJE3O"
+DB="hchq_db"
+QUERY="SELECT * FROM domains;"
+
+# Get column names in order
+readarray -t COLS < <(mysql -u "$USER" -p"$PASSWORD" -D "$DB" --batch --skip-column-names -e "SHOW COLUMNS FROM domains;" | awk '{print $1}')
+
+# Run query
+RESULT=$(mysql -u "$USER" -p"$PASSWORD" -D "$DB" --batch --skip-column-names -e "$QUERY" 2>&1) || STATUS=$?
+STATUS=${STATUS:-0}
+
+if [[ $STATUS -eq 0 ]]; then
+    JSON="["
+    while IFS=$'\t' read -r line; do
+        IFS=$'\t' read -ra values <<< "$line"
+        JSON_OBJ="{"
+        for i in "${!COLS[@]}"; do
+            val="${values[i]:-}"  # avoid out-of-bounds
+            val=$(echo "$val" | sed 's/\\/\\\\/g; s/"/\\"/g')
+            JSON_OBJ+="\"${COLS[i]}\":\"$val\","
+        done
+        JSON_OBJ="${JSON_OBJ%,}}"
+        JSON+="$JSON_OBJ,"
+    done <<< "$RESULT"
+    JSON="${JSON%,}]"
+
+    echo "{\"success\":true,\"data\":$JSON}"
+else
+    ERROR=$(echo "$RESULT" | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/' | tr -d '\n')
+    echo "{\"success\":false,\"error\":\"$ERROR\"}"
+fi

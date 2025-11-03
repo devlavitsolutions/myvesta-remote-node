@@ -18,8 +18,39 @@
     <div class="l-separator"></div>
     <!-- /.l-separator -->
 
-    <div class="l-center">
-      <?php
+<div class="l-center">
+    <form id="install-wordpress-form" method="post"
+        style="padding: 0 0 0 15px; overflow: hidden; margin: 0px 20px 20px 20px;">
+        <input type="hidden" name="token" value="<?= $_SESSION['token'] ?>">
+        <input type="hidden" name="user" value="<?= htmlentities($user) ?>">
+        <input type="hidden" name="type" value="wordpress">
+        <input type="hidden" name="domain" value="<?= htmlentities(trim($v_domain, "'")) ?>">
+
+            <table>
+                <tr>
+                    <td class="vst-text step-top">
+                        <b><?= __(' Install WordPress') ?></b><br>
+        <small>
+            <?= __('Automatically download and install WordPress into the site root') ?>
+        </small>
+        </td>
+        </tr>
+        <tr>
+            <td class="step-top">
+                <input type="submit" class="button" value="<?= __('Install Now') ?>">
+            </td>
+        </tr>
+        </table>
+    </form>
+</div>
+<?php endif; ?>
+
+
+<div class="l-separator"></div>
+<!-- /.l-separator -->
+
+<div class="l-center">
+    <?php
         $back = $_SESSION['back'];
         if (empty($back)) {
           $back = "location.href='/list/web/'";

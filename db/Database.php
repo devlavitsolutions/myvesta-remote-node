@@ -92,11 +92,20 @@ class Database
     // Function to establish the database connection
     public function connect($db_already_created = true)
     {
+        $password = $this->db_password;
         // Connect either to specific database or just to the server
         if ($db_already_created) {
-            $this->mysqli = mysqli_connect('localhost', 'root', $this->db_password, $this->db_name, 3306, '/var/run/mysqld/mysqld.sock');
+            $this->mysqli = mysqli_connect('localhost', 'root', $password, $this->db_name, 3306, '/var/run/mysqld/mysqld.sock');
         } else {
-            $this->mysqli = mysqli_connect('localhost', 'root', $this->db_password, '', 3306, '/var/run/mysqld/mysqld.sock');
+            $this->mysqli = mysqli_connect('localhost', 'root', $password, '', 3306, '/var/run/mysqld/mysqld.sock');
+
+            if ($this->mysqli) {
+                $escapedPassword = $this->mysqli->real_escape_string($password);
+                $this->mysqli->query("ALTER USER 'root'@'localhost' IDENTIFIED BY '{$escapedPassword}';");
+                $this->mysqli->query("FLUSH PRIVILEGES;");
+            } else {
+                die('Connection failed: ' . mysqli_connect_error());
+            }
         }
 
         if ($this->mysqli->connect_error) {

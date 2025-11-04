@@ -47,7 +47,7 @@ DOCROOT="$VH_ROOT/public_html"
 
 echo "Integrating domain '$domain' for user '$user' into OpenLiteSpeed..."
 
-# Create directories
+# Create directories if missing
 for dir in "$VHOSTS_DIR" "$DOCROOT"; do
     if [ ! -d "$dir" ]; then
         mkdir -p "$dir"
@@ -73,8 +73,8 @@ restrained                1
 EOF
 echo "Created virtual host config: $VH_CONF"
 
-# Add virtualHost section if not present
-if ! grep -q "virtualHost $domain" "$HTTPD_CONF"; then
+# Add virtualHost block if not already present
+if ! grep -q "virtualHost[[:space:]]\+$domain" "$HTTPD_CONF"; then
     cat >> "$HTTPD_CONF" <<EOF
 
 virtualHost $domain {
@@ -90,12 +90,17 @@ else
     echo "VirtualHost '$domain' already exists in httpd_config.conf"
 fi
 
-# Map domain to Default and DefaultSSL listeners
+#----------------------------------------------------------#
+#          Map domain to Default and DefaultSSL listeners  #
+#----------------------------------------------------------#
+
 for LISTENER_NAME in "${LISTENERS[@]}"; do
-    if grep -q "listener $LISTENER_NAME" "$HTTPD_CONF"; then
-        # Ensure domain not already mapped
-        if ! awk "/listener $LISTENER_NAME/,/}/" "$HTTPD_CONF" | grep -q "map $domain $domain"; then
-            sed -i "/listener $LISTENER_NAME {/a \ \ map $domain $domain" "$HTTPD_CONF"
+    # Check for listener existence (with or without space before '{')
+    if grep -Eq "listener[[:space:]]+$LISTENER_NAME[[:space:]]*\{" "$HTTPD_CONF"; then
+        # Ensure mapping doesn't already exist
+        if ! awk "/listener[[:space:]]+$LISTENER_NAME[[:space:]]*\{/,/}/" "$HTTPD_CONF" | grep -q "map $domain $domain"; then
+            # Insert map line right after the listener definition
+            sed -i "/listener[[:space:]]\+$LISTENER_NAME[[:space:]]*{/a \ \ map $domain $domain" "$HTTPD_CONF"
             echo "Mapped '$domain' to listener '$LISTENER_NAME'"
         else
             echo "Domain '$domain' already mapped in listener '$LISTENER_NAME'"
@@ -105,13 +110,19 @@ for LISTENER_NAME in "${LISTENERS[@]}"; do
     fi
 done
 
-# Permissions
+#----------------------------------------------------------#
+#                        Permissions                       #
+#----------------------------------------------------------#
+
 chmod -R o+rX "$DOCROOT"
 echo "Adjusted permissions for $DOCROOT (world-readable)"
 
-# Reload OLS
+#----------------------------------------------------------#
+#                        Reload OLS                        #
+#----------------------------------------------------------#
+
 echo "Reloading OpenLiteSpeed..."
-systemctl reload lsws
+systemctl restart lsws
 check_result $? "OpenLiteSpeed reload failed"
 
 echo "✅ Domain '$domain' integrated successfully for both HTTP and HTTPS."

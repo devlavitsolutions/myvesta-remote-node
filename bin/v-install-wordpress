@@ -117,15 +117,15 @@ TPL_CHANGED=0
 if [ "$PROTOCOL" = "https" ]; then
     if [ -f "/usr/local/vesta/data/templates/web/nginx/force-https-firewall-wordpress.stpl" ] && [ $TPL_CHANGED -eq 0 ]; then
         TPL_CHANGED=1
-        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "force-https-firewall-wordpress" ...
+        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl  "$user" "$domain" "force-https" "jpeg,jpg,png,gif,bmp,ico,svg,tif,tiff,css,js,ttf,otf,webp,txt,csv,rtf,doc,docx,xls,xlsx,ppt,pptx,odf,odp,ods,odt,pdf,psd,ai,eot,eps,ps,zip,tar,tgz,gz,rar,bz2,7z,aac,m4a,mp3,mp4,ogg,wav,wma,3gp,avi,flv,m4v,mkv,mov,mpeg,mpg,wmv,exe,iso,dmg,swf,woff,woff2" "yes"
     fi
     if [ -f "/usr/local/vesta/data/templates/web/nginx/force-https.stpl" ] && [ $TPL_CHANGED -eq 0 ]; then
         TPL_CHANGED=1
-        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "force-https" ...
+        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl  "$user" "$domain" "force-https" "jpeg,jpg,png,gif,bmp,ico,svg,tif,tiff,css,js,ttf,otf,webp,txt,csv,rtf,doc,docx,xls,xlsx,ppt,pptx,odf,odp,ods,odt,pdf,psd,ai,eot,eps,ps,zip,tar,tgz,gz,rar,bz2,7z,aac,m4a,mp3,mp4,ogg,wav,wma,3gp,avi,flv,m4v,mkv,mov,mpeg,mpg,wmv,exe,iso,dmg,swf,woff,woff2" "yes"
     fi
 else
     if [ -f "/usr/local/vesta/data/templates/web/nginx/hosting-firewall-wordpress.stpl" ] && [ $TPL_CHANGED -eq 0 ]; then
-        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "hosting-firewall-wordpress" ...
+        /usr/local/vesta/bin/v-change-web-domain-proxy-tpl  "$user" "$domain" "force-https" "jpeg,jpg,png,gif,bmp,ico,svg,tif,tiff,css,js,ttf,otf,webp,txt,csv,rtf,doc,docx,xls,xlsx,ppt,pptx,odf,odp,ods,odt,pdf,psd,ai,eot,eps,ps,zip,tar,tgz,gz,rar,bz2,7z,aac,m4a,mp3,mp4,ogg,wav,wma,3gp,avi,flv,m4v,mkv,mov,mpeg,mpg,wmv,exe,iso,dmg,swf,woff,woff2" "yes"
     fi
 fi
 

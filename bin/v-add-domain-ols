@@ -58,19 +58,7 @@ for dir in "$VHOSTS_DIR" "$DOCROOT"; do
 done
 
 # Create virtual host config
-cat > "$VH_CONF" <<EOF
-docRoot                   $DOCROOT
-enableScript              1
-restrained                1
-
-<errorlog $domain>
-  logLevel                ERROR
-</errorlog>
-
-<accesslog $domain>
-  logFormat               "%h %l %u %t \"%r\" %>s %b"
-</accesslog>
-EOF
+cat > "$VH_CONF"
 echo "Created virtual host config: $VH_CONF"
 
 # Add virtualHost block if not already present

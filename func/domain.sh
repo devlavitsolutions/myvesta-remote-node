@@ -207,11 +207,34 @@ add_web_config() {
     chown root:$user $conf
     chmod 640 $conf
 
-    if [ -z "$(grep "$conf" /etc/$1/conf.d/vesta.conf)" ]; then
-        if [ "$1" != 'nginx' ]; then
-            echo "Include $conf" >> /etc/$1/conf.d/vesta.conf
-        else
-            echo "include $conf;" >> /etc/$1/conf.d/vesta.conf
+    # Add configuration include depending on webserver type
+    if [ "$1" = "lsws" ]; then
+        # OpenLiteSpeed does NOT use /etc/lsws/conf.d
+        # It stores per-domain vhost configs in:
+        #   /usr/local/lsws/conf/vhosts/<domain>/vhconf.conf
+
+        lsws_vhost="/usr/local/lsws/conf/vhosts/$domain"
+        lsws_vhconf="$lsws_vhost/vhconf.conf"
+
+        # Create vhost folder if missing
+        mkdir -p "$lsws_vhost"
+
+        # If config path not added already, include it
+        if ! grep -q "$conf" "$lsws_vhconf" 2>/dev/null; then
+            echo "include $conf" >> "$lsws_vhconf"
+        fi
+
+        # Reload OpenLiteSpeed
+        systemctl reload lsws
+
+    else
+        # nginx / apache default Vesta behavior
+        if [ -z "$(grep "$conf" /etc/$1/conf.d/vesta.conf 2>/dev/null)" ]; then
+            if [ "$1" != 'nginx' ]; then
+                echo "Include $conf" >> /etc/$1/conf.d/vesta.conf
+            else
+                echo "include $conf;" >> /etc/$1/conf.d/vesta.conf
+            fi
         fi
     fi
 
